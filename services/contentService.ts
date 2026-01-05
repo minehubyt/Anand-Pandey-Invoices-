@@ -167,19 +167,15 @@ export const contentService = {
 
   // --- CRM & ADMIN CLIENT MANAGEMENT ---
 
-  // Create a Premier Client User (Email/Password) without logging out Admin
   createPremierUser: async (clientData: { email: string, password?: string, name: string, companyName: string, mobile: string, address: string }) => {
-    // 1. Initialize a secondary app instance to avoid disrupting the current Admin session
     const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
     const secondaryAuth = getAuth(secondaryApp);
 
     try {
-      // 2. Create the user in Firebase Auth
+      // Try to create user
       const userCredential = await createUserWithEmailAndPassword(secondaryAuth, clientData.email, clientData.password || 'Welcome@123');
       const uid = userCredential.user.uid;
 
-      // 3. Save the detailed profile to Firestore (using the MAIN app's db instance)
-      // Explicitly set role to 'premier' so they get the special dashboard
       await setDoc(doc(db, COLLECTIONS.USERS, uid), {
         uid,
         email: clientData.email,
@@ -191,23 +187,39 @@ export const contentService = {
         createdAt: new Date().toISOString()
       });
 
-      // 4. Cleanup: Sign out and delete the secondary app
       await signOut(secondaryAuth);
       await deleteApp(secondaryApp);
-
       return uid;
+
     } catch (error: any) {
-      // Cleanup on error too
+      // If user already exists (auth/email-already-in-use), we find their UID via the main app (via Firestore lookup usually, but since we can't search Auth, we assume they have a profile).
+      // If we can't find their profile, we can't upgrade them easily without them signing in.
+      // However, for this flow, we will try to find a user profile with this email in Firestore.
+      
       try { await deleteApp(secondaryApp); } catch(e) {} 
-      console.error("Error creating premier user:", error);
+
+      if (error.code === 'auth/email-already-in-use') {
+         const q = query(collection(db, COLLECTIONS.USERS), where("email", "==", clientData.email));
+         const snap = await getDocs(q);
+         
+         if (!snap.empty) {
+            const existingDoc = snap.docs[0];
+            await updateDoc(doc(db, COLLECTIONS.USERS, existingDoc.id), {
+               role: 'premier',
+               companyName: clientData.companyName,
+               mobile: clientData.mobile,
+               address: clientData.address
+            });
+            return existingDoc.id;
+         } else {
+            throw new Error("User exists in Auth but has no profile. Please ask user to login first.");
+         }
+      }
       throw error;
     }
   },
 
-  // Legacy/Invite Only method (if password not provided)
   invitePremierClient: async (clientData: any) => {
-     // This creates a placeholder doc, usually followed by email invitation flow
-     // But for direct admin creation, use createPremierUser
      return await contentService.createPremierUser({ ...clientData, password: clientData.password || 'Welcome@123' });
   },
 
@@ -232,8 +244,26 @@ export const contentService = {
     });
   },
 
+  // Add this new method to get ALL invoices for the admin finance tab
+  subscribeAllInvoices: (callback: (docs: ClientDocument[]) => void) => {
+    return onSnapshot(collection(db, COLLECTIONS.DOCUMENTS), (snapshot) => {
+      const allDocs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ClientDocument));
+      // Filter only invoices and sort by date descending
+      const invoices = allDocs.filter(d => d.type === 'invoice');
+      invoices.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      callback(invoices);
+    });
+  },
+
   addClientDocument: async (docData: Omit<ClientDocument, 'id'>) => {
     await addDoc(collection(db, COLLECTIONS.DOCUMENTS), docData);
+  },
+
+  updateDocumentStatus: async (docId: string, status: string, paymentDate?: string) => {
+    await updateDoc(doc(db, COLLECTIONS.DOCUMENTS, docId), { 
+       status,
+       ...(paymentDate && { paymentDate }) 
+    });
   },
 
   deleteClientDocument: async (id: string) => {

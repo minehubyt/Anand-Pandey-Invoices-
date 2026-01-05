@@ -1,61 +1,78 @@
 
 import React from 'react';
-import { X, Printer, Download } from 'lucide-react';
+import { X, Printer, Download, CheckCircle } from 'lucide-react';
 import { InvoiceDetails } from '../../types';
 
 interface InvoiceRendererProps {
   data: InvoiceDetails;
   onClose: () => void;
+  mode?: 'invoice' | 'receipt';
 }
 
-export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose }) => {
+export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose, mode = 'invoice' }) => {
   
-  // Secure QR Generation: 
-  // We encode the data in a custom format that standard scanners won't interpret as a URL or contact.
-  // This simulates "only scanned by you".
-  const securePayload = btoa(`AKP_SECURE_INVOICE_V1::${data.invoiceNo}::${data.totalAmount}::${data.clientName}`);
+  // Secure QR Generation
+  const securePayload = btoa(`AKP_${mode.toUpperCase()}_V1::${data.invoiceNo}::${data.totalAmount}::${data.clientName}`);
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${securePayload}&bgcolor=ffffff`;
 
+  const handlePrint = () => {
+    document.title = `${mode === 'receipt' ? 'RECEIPT' : 'INVOICE'}_${data.invoiceNo}`;
+    window.print();
+  };
+
   return (
-    <div className="fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-sm flex justify-center overflow-y-auto py-8 px-4">
-      <div className="bg-white w-full max-w-[850px] shadow-2xl relative min-h-[1100px] flex flex-col h-fit animate-reveal-up">
+    <div className="fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-sm flex justify-center overflow-y-auto py-8 px-4 print:p-0 print:bg-white print:fixed print:inset-0">
+      <div className="bg-white w-full max-w-[210mm] shadow-2xl relative min-h-[297mm] flex flex-col h-fit animate-reveal-up print:shadow-none print:w-full print:max-w-none print:h-full print:animate-none">
         
         {/* Floating Controls (Don't Print) */}
-        <div className="absolute top-0 right-0 p-4 flex gap-2 print:hidden">
-          <button onClick={() => window.print()} className="p-3 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-600 transition-colors"><Printer size={20}/></button>
-          <button onClick={onClose} className="p-3 bg-red-100 hover:bg-red-200 rounded-full text-red-600 transition-colors"><X size={20}/></button>
+        <div className="absolute top-0 right-0 p-4 flex gap-2 print:hidden -mr-16">
+          <button onClick={handlePrint} className="p-3 bg-white text-slate-900 hover:bg-[#CC1414] hover:text-white rounded-full transition-colors shadow-lg" title="Download/Print PDF">
+             <Download size={20}/>
+          </button>
+          <button onClick={onClose} className="p-3 bg-white text-slate-400 hover:text-red-600 rounded-full transition-colors shadow-lg">
+             <X size={20}/>
+          </button>
         </div>
 
-        {/* --- INVOICE CONTENT START --- */}
-        <div className="p-12 md:p-16 flex-1 text-slate-900 font-sans text-sm">
+        {/* --- CONTENT START --- */}
+        <div className="p-12 md:p-16 flex-1 text-slate-900 font-sans text-sm print:p-[10mm]">
           
           {/* Header */}
           <div className="flex justify-between items-start mb-12">
             <div className="flex flex-col">
-               <div className="flex items-center font-sans uppercase tracking-[0.18em] text-[#A6192E] font-bold mb-4 scale-110 origin-left">
-                  <span className="text-3xl leading-none">AK PANDEY</span>
-                  <span className="text-lg mx-1.5 self-center">&</span>
-                  <span className="text-3xl leading-none">ASSOCIATES</span>
+               {/* Resized Logo for A4 Perfect Match */}
+               <div className="flex items-center font-sans uppercase tracking-[0.15em] text-[#A6192E] font-bold mb-4">
+                  <span className="text-2xl leading-none">AK PANDEY</span>
+                  <span className="text-sm mx-1.5 self-center">&</span>
+                  <span className="text-2xl leading-none">ASSOCIATES</span>
                </div>
             </div>
-            <div className="text-right text-[11px] leading-relaxed text-slate-600">
-               <p className="font-bold text-black">AK Pandey & Associates</p>
+            <div className="text-right text-[10px] leading-relaxed text-slate-600">
+               <p className="font-bold text-black text-xs uppercase tracking-wide">AK Pandey & Associates</p>
                <p>High Court Chambers, Shanti Path</p>
                <p>New Delhi, 110001, India</p>
                <p>Tel: +91 11 2345 6789</p>
-               <p>Email: invoice@anandpandey.in</p>
+               <p>Email: finance@anandpandey.in</p>
             </div>
           </div>
 
-          {/* Title */}
-          <div className="border-b-2 border-black pb-2 mb-8">
-             <h1 className="text-xl font-bold text-black uppercase tracking-tight">Professional Fee Invoice - Original for Recipient</h1>
+          {/* Title & Status */}
+          <div className="border-b-2 border-black pb-2 mb-8 flex justify-between items-end">
+             <h1 className="text-lg font-bold text-black uppercase tracking-tight">
+                {mode === 'receipt' ? 'Official Payment Receipt' : 'Professional Fee Invoice'}
+             </h1>
+             {mode === 'receipt' && (
+                <div className="flex items-center gap-2 text-green-700 border border-green-700 px-3 py-1 rounded-sm">
+                   <CheckCircle size={14} />
+                   <span className="text-[10px] font-bold uppercase tracking-widest">PAID IN FULL</span>
+                </div>
+             )}
           </div>
 
-          {/* Details Grid - Compacted Gaps */}
-          <div className="grid grid-cols-2 gap-x-12 gap-y-1 mb-10 text-[13px]">
+          {/* Details Grid */}
+          <div className="grid grid-cols-2 gap-x-12 gap-y-1 mb-10 text-[12px]">
              <div className="grid grid-cols-[100px_1fr] gap-2">
-                <span className="font-bold">Invoice No.</span>
+                <span className="font-bold">{mode === 'receipt' ? 'Receipt No.' : 'Invoice No.'}</span>
                 <span>: &nbsp; {data.invoiceNo}</span>
              </div>
              <div className="grid grid-cols-[100px_1fr] gap-2">
@@ -73,10 +90,6 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose 
              </div>
 
              <div className="grid grid-cols-[100px_1fr] gap-2">
-                <span className="font-bold">Mailing Address</span>
-                <span className="leading-relaxed whitespace-pre-line uppercase">: &nbsp; {data.mailingAddress}</span>
-             </div>
-             <div className="grid grid-cols-[100px_1fr] gap-2">
                 <span className="font-bold">Address</span>
                 <span className="leading-relaxed whitespace-pre-line uppercase">: &nbsp; {data.clientAddress}</span>
              </div>
@@ -84,7 +97,7 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose 
 
           {/* Line Items Table */}
           <div className="mb-2">
-             <table className="w-full">
+             <table className="w-full text-[12px]">
                 <thead>
                    <tr className="text-left border-t-2 border-b-2 border-black">
                       <th className="py-2 font-bold w-16 text-black">S.No.</th>
@@ -95,11 +108,11 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose 
                 <tbody className="divide-y divide-slate-200">
                    {data.items.map((item, idx) => (
                       <tr key={idx}>
-                         <td className="py-4 align-top">{idx + 1}.</td>
-                         <td className="py-4 align-top pr-8">
+                         <td className="py-3 align-top">{idx + 1}.</td>
+                         <td className="py-3 align-top pr-8">
                             <p className="font-medium text-black">{item.description}</p>
                          </td>
-                         <td className="py-4 align-top text-right font-medium text-black">
+                         <td className="py-3 align-top text-right font-medium text-black">
                             {item.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                          </td>
                       </tr>
@@ -110,36 +123,46 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose 
           </div>
 
           {/* Total Section */}
-          <div className="flex justify-end mb-8">
+          <div className="flex justify-end mb-8 text-[12px]">
              <div className="w-1/2 pt-2">
                 <div className="flex justify-between items-center mb-2">
-                   <span className="font-bold text-lg text-black">Gross Amount</span>
-                   <span className="font-bold text-lg text-black">{data.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                   <span className="font-bold text-base text-black">{mode === 'receipt' ? 'Amount Received' : 'Gross Amount'}</span>
+                   <span className="font-bold text-base text-black">{data.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                 </div>
              </div>
           </div>
 
-          <div className="mb-12 border-b border-slate-200 pb-8">
-             <p className="font-bold text-black text-sm uppercase">RUPEES {data.amountInWords}</p>
+          <div className="mb-12 border-b border-slate-200 pb-8 text-[12px]">
+             <p className="font-bold text-black uppercase">RUPEES {data.amountInWords}</p>
           </div>
 
           {/* Terms & Footer */}
-          <div className="text-[11px] leading-relaxed text-slate-700">
-             <p className="font-bold mb-2 uppercase text-black">Terms and Conditions</p>
-             <ul className="list-none space-y-1 pl-0 mb-8">
-                {data.terms.map((term, i) => (
-                   <li key={i} className="flex gap-2">
-                      <span>{String.fromCharCode(97 + i)})</span>
-                      <span>{term}</span>
-                   </li>
-                ))}
-             </ul>
+          <div className="text-[10px] leading-relaxed text-slate-700">
+             {mode === 'invoice' && (
+                <>
+                   <p className="font-bold mb-2 uppercase text-black">Terms and Conditions</p>
+                   <ul className="list-none space-y-1 pl-0 mb-8">
+                      {data.terms.map((term, i) => (
+                         <li key={i} className="flex gap-2">
+                            <span>{String.fromCharCode(97 + i)})</span>
+                            <span>{term}</span>
+                         </li>
+                      ))}
+                   </ul>
+                </>
+             )}
+             
+             {mode === 'receipt' && (
+                <p className="mb-8 italic text-slate-500">
+                   This receipt acknowledges the payment for the professional services rendered as per the invoice details above. Thank you for your continued trust in AK Pandey & Associates.
+                </p>
+             )}
 
              {/* Bottom Signature & QR Area */}
              <div className="flex justify-between items-end mt-16">
                 <div className="flex flex-col items-center">
-                   <img src={qrUrl} alt="Secure QR" className="w-32 h-32 border border-slate-200 p-1 mb-2" />
-                   <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Secure Verification ID</span>
+                   <img src={qrUrl} alt="Secure QR" className="w-24 h-24 border border-slate-200 p-1 mb-2" />
+                   <span className="text-[8px] font-bold uppercase tracking-widest text-slate-400">Secure Verification ID</span>
                 </div>
 
                 <div className="text-right">
@@ -151,11 +174,11 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose 
           </div>
 
         </div>
-        {/* --- INVOICE CONTENT END --- */}
+        {/* --- CONTENT END --- */}
 
         {/* Footer Bar (Print Only) */}
-        <div className="hidden print:block fixed bottom-0 w-full text-center text-[10px] text-slate-400 p-4 bg-white">
-           Computer Generated Invoice • {data.invoiceNo}
+        <div className="hidden print:block fixed bottom-0 w-full text-center text-[8px] text-slate-400 p-4 bg-white">
+           Computer Generated {mode === 'receipt' ? 'Receipt' : 'Invoice'} • {data.invoiceNo} • Page 1 of 1
         </div>
 
       </div>
