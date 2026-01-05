@@ -1,7 +1,8 @@
 
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { 
+  getFirestore,
   initializeFirestore, 
   persistentLocalCache, 
   persistentMultipleTabManager 
@@ -18,14 +19,24 @@ const firebaseConfig = {
   measurementId: "G-86TZWEFCFL"
 };
 
-const app = initializeApp(firebaseConfig);
+// Singleton App Instance: Prevents "App already exists" errors during HMR
+const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-// Improved Firestore initialization with persistent local cache
-export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager()
-  })
-});
+// Initialize Firestore with checks
+let dbInstance;
+try {
+  // Try to initialize with custom settings (offline cache)
+  // This throws if Firestore is already initialized on this app instance
+  dbInstance = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager()
+    })
+  });
+} catch (error: any) {
+  // If it's already initialized (e.g. via HMR or default init), fallback to getting the existing instance
+  dbInstance = getFirestore(app);
+}
 
+export const db = dbInstance;
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();

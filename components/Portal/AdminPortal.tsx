@@ -109,6 +109,23 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
     if (loading && (hero || insights.length > 0)) setLoading(false);
   }, [hero, insights]);
 
+  // Auto-fill address when switching to digital invoice mode inside Client Manager
+  useEffect(() => {
+    if (uploadDocType === 'digital_invoice' && managingClient) {
+        setInvoiceForm(prev => ({
+            ...prev,
+            clientName: managingClient.companyName || managingClient.name,
+            kindAttn: managingClient.name,
+            clientAddress: managingClient.address || '',
+            mailingAddress: managingClient.address || '',
+            invoiceNo: `INV-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000)}`,
+            items: [{ id: '1', description: 'Professional Legal Consultation', amount: 0 }],
+            totalAmount: 0,
+            amountInWords: ''
+        }));
+    }
+  }, [uploadDocType, managingClient]);
+
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
 
   const handleEdit = (entity: any, tab?: Tab) => {
@@ -188,6 +205,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
   const openClientManager = (client: UserProfile) => {
      setManagingClient(client);
      contentService.subscribeClientDocuments(client.uid, setClientDocs);
+     // Pre-fill invoice data with client address
      setInvoiceForm(prev => ({
         ...prev,
         clientName: client.companyName || client.name,
@@ -203,6 +221,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
       setSelectedClientForInvoice(clientId);
       const client = premierClients.find(c => c.uid === clientId);
       if (client) {
+          // Auto-fetch address when client is selected
           setInvoiceForm(prev => ({
               ...prev,
               clientName: client.companyName || client.name,
