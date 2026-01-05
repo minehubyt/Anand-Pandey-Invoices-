@@ -47,13 +47,13 @@ const generateExecutiveTemplate = (
     <tr>
       <td align="center" style="padding: 40px 20px;">
         
-        <!-- Brand Header -->
+        <!-- Brand Header - Matched to Portal Branding -->
         <table width="100%" style="max-width: 600px; margin-bottom: 30px;" cellpadding="0" cellspacing="0" border="0">
           <tr>
             <td align="center">
-               <span style="font-size: 20px; font-weight: 700; letter-spacing: 4px; color: ${COLORS.brandRed}; text-transform: uppercase; font-family: 'Georgia', serif;">AK PANDEY</span>
-               <span style="font-size: 14px; color: ${COLORS.brandRed}; margin: 0 8px;">&</span>
-               <span style="font-size: 20px; font-weight: 700; letter-spacing: 4px; color: ${COLORS.brandRed}; text-transform: uppercase; font-family: 'Georgia', serif;">ASSOCIATES</span>
+               <span style="font-size: 20px; font-weight: 500; letter-spacing: 3px; color: ${COLORS.brandRed}; text-transform: uppercase; font-family: Arial, sans-serif;">AK PANDEY</span>
+               <span style="font-size: 14px; color: ${COLORS.brandRed}; margin: 0 8px; font-family: Arial, sans-serif;">&</span>
+               <span style="font-size: 20px; font-weight: 500; letter-spacing: 3px; color: ${COLORS.brandRed}; text-transform: uppercase; font-family: Arial, sans-serif;">ASSOCIATES</span>
             </td>
           </tr>
         </table>
@@ -160,7 +160,7 @@ export const emailService = {
       "We received a request to access the secure client portal. Please use the One-Time Password below to complete your login.",
       "SECURE ACCESS CODE",
       richOtpContent,
-      "https://www.thetaxjournal.in",
+      "https://anand-pandey-invoices.vercel.app/login",
       "Verify & Login"
     );
     await emailService.send(email, `Verification Code: ${otp}`, html);
@@ -175,7 +175,7 @@ export const emailService = {
         <tr><td width="40" valign="top"><div style="background-color: #E2E8F0; width: 32px; height: 32px; border-radius: 50%; text-align: center; line-height: 32px; font-size: 16px;">📍</div></td><td valign="top"><span style="display: block; font-size: 16px; font-weight: 700; color: ${COLORS.dark}; margin-bottom: 4px;">${branch} Chamber</span><span style="display: block; font-size: 13px; color: #64748B;">Reference ID: <span style="font-family: monospace; background: #fff; padding: 2px 6px; border: 1px solid #e2e8f0; border-radius: 4px;">${uniqueId}</span></span></td></tr>
       </table>
     `;
-    const html = generateExecutiveTemplate("Appointment Confirmed", name, `Your consultation request has been authorized. A Senior Partner has been notified.`, "SESSION DETAILS", overviewBody, "https://www.thetaxjournal.in/dashboard", "Manage Appointment");
+    const html = generateExecutiveTemplate("Appointment Confirmed", name, `Your consultation request has been authorized. A Senior Partner has been notified.`, "SESSION DETAILS", overviewBody, "https://anand-pandey-invoices.vercel.app/dashboard", "Manage Appointment");
     await emailService.send(email, `Confirmed: Consultation on ${formattedDate}`, html, 'admin@thetaxjournal.in');
     await emailService.send(ADMIN_EMAIL, `New Appointment: ${uniqueId}`, `<p>New appointment from <strong>${name}</strong>.</p>`, email);
   },
@@ -222,14 +222,18 @@ export const emailService = {
         <li>Real-time Invoice Status</li>
       </ul>
     `;
+    
+    // Generate special link with auto-fill parameters
+    const specialLink = `https://anand-pandey-invoices.vercel.app/login?email=${encodeURIComponent(email)}&name=${encodeURIComponent(name)}&isSignUp=true`;
+
     const html = generateExecutiveTemplate(
       "Exclusive Access Invitation",
       name,
       "You have been invited to join the AK Pandey & Associates Premier Client Matrix.",
       "MEMBERSHIP PRIVILEGES",
       overviewBody,
-      "https://www.thetaxjournal.in/login",
-      "Activate Account"
+      specialLink,
+      "Activate Secure Account"
     );
     await emailService.send(email, "Invitation: Premier Client Portal", html);
   }

@@ -143,6 +143,7 @@ export interface UserProfile {
   role: 'applicant' | 'general' | 'admin' | 'premier';
   createdAt: string;
   // CRM Specific Fields
+  address?: string; // Added for automatic invoice fetching
   assignedAdvocate?: {
     name: string;
     email: string;

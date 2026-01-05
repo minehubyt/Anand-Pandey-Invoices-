@@ -32,7 +32,7 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose 
           {/* Header */}
           <div className="flex justify-between items-start mb-12">
             <div className="flex flex-col">
-               <div className="flex items-center font-sans uppercase tracking-[0.18em] text-[#000000] font-bold mb-4 scale-110 origin-left">
+               <div className="flex items-center font-sans uppercase tracking-[0.18em] text-[#A6192E] font-bold mb-4 scale-110 origin-left">
                   <span className="text-3xl leading-none">AK PANDEY</span>
                   <span className="text-lg mx-1.5 self-center">&</span>
                   <span className="text-3xl leading-none">ASSOCIATES</span>
@@ -52,8 +52,8 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose 
              <h1 className="text-xl font-bold text-black uppercase tracking-tight">Professional Fee Invoice - Original for Recipient</h1>
           </div>
 
-          {/* Details Grid */}
-          <div className="grid grid-cols-2 gap-x-12 gap-y-4 mb-12">
+          {/* Details Grid - Compacted Gaps */}
+          <div className="grid grid-cols-2 gap-x-12 gap-y-1 mb-10 text-[13px]">
              <div className="grid grid-cols-[100px_1fr] gap-2">
                 <span className="font-bold">Invoice No.</span>
                 <span>: &nbsp; {data.invoiceNo}</span>
@@ -63,11 +63,11 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose 
                 <span>: &nbsp; {new Date(data.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}</span>
              </div>
 
-             <div className="grid grid-cols-[100px_1fr] gap-2 mt-4">
+             <div className="grid grid-cols-[100px_1fr] gap-2">
                 <span className="font-bold">Kind Attn.</span>
                 <span>: &nbsp; {data.kindAttn}</span>
              </div>
-             <div className="grid grid-cols-[100px_1fr] gap-2 mt-4">
+             <div className="grid grid-cols-[100px_1fr] gap-2">
                 <span className="font-bold">Client Name</span>
                 <span>: &nbsp; {data.clientName}</span>
              </div>
@@ -83,13 +83,13 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose 
           </div>
 
           {/* Line Items Table */}
-          <div className="mb-8">
-             <table className="w-full border-t-2 border-b-2 border-black">
+          <div className="mb-2">
+             <table className="w-full">
                 <thead>
-                   <tr className="text-left">
-                      <th className="py-2 font-bold w-16">S.No.</th>
-                      <th className="py-2 font-bold">Particulars</th>
-                      <th className="py-2 font-bold text-right">Amount (INR)</th>
+                   <tr className="text-left border-t-2 border-b-2 border-black">
+                      <th className="py-2 font-bold w-16 text-black">S.No.</th>
+                      <th className="py-2 font-bold text-black">Particulars</th>
+                      <th className="py-2 font-bold text-right text-black">Amount (INR)</th>
                    </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
@@ -99,33 +99,33 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose 
                          <td className="py-4 align-top pr-8">
                             <p className="font-medium text-black">{item.description}</p>
                          </td>
-                         <td className="py-4 align-top text-right font-medium">
+                         <td className="py-4 align-top text-right font-medium text-black">
                             {item.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                          </td>
                       </tr>
                    ))}
                 </tbody>
              </table>
+             <div className="border-t-2 border-black w-full"></div>
           </div>
 
           {/* Total Section */}
           <div className="flex justify-end mb-8">
-             <div className="w-1/2 border-t border-black pt-2">
+             <div className="w-1/2 pt-2">
                 <div className="flex justify-between items-center mb-2">
-                   <span className="font-bold text-lg">Gross Amount</span>
-                   <span className="font-bold text-lg">{data.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                   <span className="font-bold text-lg text-black">Gross Amount</span>
+                   <span className="font-bold text-lg text-black">{data.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                 </div>
-                <div className="border-t-4 border-double border-black mt-2"></div>
              </div>
           </div>
 
-          <div className="mb-12">
+          <div className="mb-12 border-b border-slate-200 pb-8">
              <p className="font-bold text-black text-sm uppercase">RUPEES {data.amountInWords}</p>
           </div>
 
           {/* Terms & Footer */}
-          <div className="border-t border-black pt-6 text-[11px] leading-relaxed text-slate-700">
-             <p className="font-bold mb-2 uppercase">Terms and Conditions</p>
+          <div className="text-[11px] leading-relaxed text-slate-700">
+             <p className="font-bold mb-2 uppercase text-black">Terms and Conditions</p>
              <ul className="list-none space-y-1 pl-0 mb-8">
                 {data.terms.map((term, i) => (
                    <li key={i} className="flex gap-2">

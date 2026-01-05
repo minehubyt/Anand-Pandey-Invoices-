@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Shield, UserPlus, LogIn, Loader2, KeyRound, Mail, CheckCircle, ArrowRight } from 'lucide-react';
 import { 
   signInWithEmailAndPassword, 
@@ -35,6 +35,18 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onClose, intendedRole 
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Check for URL parameters on mount to auto-fill fields
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paramEmail = params.get('email');
+    const paramName = params.get('name');
+    const paramMode = params.get('isSignUp');
+
+    if (paramEmail) setEmail(paramEmail);
+    if (paramName) setName(paramName);
+    if (paramMode === 'true') setIsSignUp(true);
+  }, []);
 
   const getFriendlyErrorMessage = (code: string) => {
     switch (code) {

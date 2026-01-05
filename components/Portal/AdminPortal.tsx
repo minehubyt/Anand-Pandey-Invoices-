@@ -43,7 +43,6 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [activeEntity, setActiveEntity] = useState<any>(null);
-  const [selectedApp, setSelectedApp] = useState<JobApplication | null>(null);
   
   // Client Management States
   const [managingClient, setManagingClient] = useState<UserProfile | null>(null);
@@ -106,7 +105,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
   const handleNew = () => {
     if (activeTab === 'clients') {
        setInvitingClient(true);
-       setActiveEntity({ name: '', email: '', mobile: '', companyName: '' });
+       setActiveEntity({ name: '', email: '', mobile: '', companyName: '', address: '', password: '' });
        return;
     }
     const templates: Record<string, any> = {
@@ -127,7 +126,8 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
     setIsSaving(true);
     try {
         if (invitingClient) {
-           await contentService.invitePremierClient(activeEntity);
+           // Inviting client creates the User Profile AND Auth Account with password
+           await contentService.createPremierUser(activeEntity);
            await emailService.sendPremierInvitation(activeEntity);
            setInvitingClient(false);
         } else if (activeTab === 'hero') await contentService.saveHero(activeEntity);
@@ -156,11 +156,12 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
   const openClientManager = (client: UserProfile) => {
      setManagingClient(client);
      contentService.subscribeClientDocuments(client.uid, setClientDocs);
-     // Pre-fill invoice client data
      setInvoiceForm(prev => ({
         ...prev,
         clientName: client.companyName || client.name,
         kindAttn: client.name,
+        clientAddress: client.address || '',
+        mailingAddress: client.address || '',
         invoiceNo: `INV-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000)}`
      }));
   };
@@ -168,31 +169,26 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
   const handleCreateDigitalInvoice = async () => {
      if (!managingClient) return;
      setIsSaving(true);
-     
-     // Calculate Totals
      const total = invoiceForm.items.reduce((sum, item) => sum + Number(item.amount), 0);
-     const amountWords = `${total} ONLY`; // Placeholder for simple logic, ideal to use a lib
-
+     const amountWords = `${total} ONLY`; 
      const finalInvoice: InvoiceDetails = {
         ...invoiceForm,
         totalAmount: total,
-        amountInWords: amountWords.toUpperCase() // Basic conversion
+        amountInWords: amountWords.toUpperCase()
      };
-
      await contentService.addClientDocument({
         userId: managingClient.uid,
         type: 'invoice',
         title: `Invoice #${finalInvoice.invoiceNo}`,
-        url: '', // Digital invoice has no file URL initially
+        url: '', 
         uploadedBy: 'admin',
         date: invoiceForm.date,
         status: 'Pending',
         amount: `₹${total.toLocaleString()}`,
         invoiceDetails: finalInvoice
      });
-
      setIsSaving(false);
-     setUploadDocType('document'); // Reset view
+     setUploadDocType('document');
   };
 
   const updateInvoiceItem = (idx: number, field: keyof InvoiceLineItem, value: any) => {
@@ -244,17 +240,100 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
      setManagingClient(prev => prev ? ({...prev, assignedAdvocate: { name: advocate.name, email: advocate.email || '', phone: '+91 99999 00000', designation: advocate.title, photo: advocate.image }}) : null);
   };
 
-  const filteredInquiries = inquiries.filter(i => 
-    (activeTab === 'appointments' ? i.type === 'appointment' : i.type !== 'appointment') &&
-    (i.name.toLowerCase().includes(searchQuery.toLowerCase()) || i.uniqueId.toLowerCase().includes(searchQuery.toLowerCase()))
+  const renderApplicationsTable = () => (
+    <div className="bg-white border border-slate-100 rounded-3xl overflow-hidden shadow-sm">
+       <table className="w-full text-left border-collapse">
+          <thead>
+             <tr className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-slate-50">
+                <th className="p-6">Candidate</th>
+                <th className="p-6">Role Applied</th>
+                <th className="p-6">Submission Date</th>
+                <th className="p-6">Resume</th>
+                <th className="p-6">Status</th>
+             </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50">
+             {applications.length === 0 ? (
+                <tr><td colSpan={5} className="p-8 text-center text-slate-400 italic">No active applications in the pool.</td></tr>
+             ) : (
+                applications.map(app => (
+                   <tr key={app.id} className="hover:bg-slate-50 transition-colors group">
+                      <td className="p-6">
+                         <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden flex items-center justify-center text-slate-500 font-bold">
+                               {app.data.personal.photo ? <img src={app.data.personal.photo} className="w-full h-full object-cover"/> : app.data.personal.name.charAt(0)}
+                            </div>
+                            <div>
+                               <p className="font-bold text-slate-900">{app.data.personal.name}</p>
+                               <p className="text-[11px] text-slate-500">{app.data.personal.email}</p>
+                            </div>
+                         </div>
+                      </td>
+                      <td className="p-6 text-sm text-slate-700">{app.jobTitle}</td>
+                      <td className="p-6 text-sm text-slate-500">{new Date(app.submittedDate).toLocaleDateString()}</td>
+                      <td className="p-6">
+                         {app.data.resumeUrl ? (
+                            <a href="#" className="text-blue-600 hover:underline text-xs font-bold uppercase tracking-wide flex items-center gap-1"><FileText size={14}/> View CV</a>
+                         ) : <span className="text-slate-300 text-xs">Not Attached</span>}
+                      </td>
+                      <td className="p-6">
+                         <select 
+                           value={app.status}
+                           onChange={(e) => contentService.updateApplicationStatus(app.id, e.target.value as any)}
+                           className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest border-none outline-none cursor-pointer ${app.status === 'Received' ? 'bg-blue-50 text-blue-600' : app.status === 'Interview' ? 'bg-orange-50 text-orange-600' : app.status === 'Offered' ? 'bg-green-50 text-green-600' : 'bg-slate-100 text-slate-600'}`}
+                         >
+                            <option>Received</option>
+                            <option>Under Review</option>
+                            <option>Interview</option>
+                            <option>Offered</option>
+                            <option>Rejected</option>
+                         </select>
+                      </td>
+                   </tr>
+                ))
+             )}
+          </tbody>
+       </table>
+    </div>
   );
+
+  const renderInquiriesTable = (typeFilter: string) => {
+     const data = inquiries.filter(i => typeFilter === 'rfp' ? i.type !== 'appointment' : i.type === 'appointment');
+     return (
+        <div className="grid grid-cols-1 gap-4">
+           {data.length === 0 ? (
+              <div className="p-12 text-center text-slate-400 italic bg-white rounded-2xl border border-slate-100">No active items in this category.</div>
+           ) : (
+              data.map(item => (
+                 <div key={item.id} className="p-6 bg-white border border-slate-100 rounded-2xl hover:shadow-md transition-all flex justify-between items-center">
+                    <div className="flex items-center gap-4">
+                       <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${item.type === 'appointment' ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'}`}>
+                          {item.type === 'appointment' ? <Calendar size={20}/> : <Inbox size={20}/>}
+                       </div>
+                       <div>
+                          <p className="font-bold text-slate-900">{item.name}</p>
+                          <p className="text-[11px] uppercase tracking-wider text-slate-500">{item.type === 'appointment' ? `${new Date(item.details.date).toLocaleDateString()} @ ${item.details.time.hour}:${item.details.time.minute} ${item.details.time.period}` : item.details.companyName || 'General Inquiry'}</p>
+                       </div>
+                    </div>
+                    <div className="flex items-center gap-6">
+                       <div className="text-right">
+                          <p className="text-xs text-slate-400">{new Date(item.date).toLocaleDateString()}</p>
+                          <span className={`text-[9px] font-bold uppercase px-2 py-1 rounded-md ${item.status === 'new' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>{item.status}</span>
+                       </div>
+                       <button onClick={() => contentService.updateInquiryStatus(item.id, 'reviewed')} className="p-2 bg-slate-50 hover:bg-slate-200 rounded-full transition-colors"><CheckCircle size={18} className="text-slate-400 hover:text-green-600"/></button>
+                    </div>
+                 </div>
+              ))
+           )}
+        </div>
+     );
+  };
 
   return (
     <div className={`flex h-screen overflow-hidden ${isDarkMode ? 'bg-[#0A0B0E]' : 'bg-[#F4F7FE]'}`}>
       {viewInvoice && <InvoiceRenderer data={viewInvoice} onClose={() => setViewInvoice(null)} />}
       
       <aside className={`w-[290px] flex flex-col h-full shrink-0 border-r ${isDarkMode ? 'bg-[#111216] border-white/5' : 'bg-white border-slate-200'}`}>
-        {/* ... Sidebar Content Same as Before ... */}
         <div className="p-8 pb-4">
           <div className="flex items-center gap-4 mb-10">
              <div className="w-12 h-12 bg-[#CC1414] rounded-2xl flex items-center justify-center text-white shadow-xl shadow-red-500/20"><ShieldCheck size={28}/></div>
@@ -289,7 +368,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
         <div className="flex justify-between items-center mb-16 animate-reveal-up">
            <div>
               <h2 className={`text-4xl font-serif mb-2 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-                {activeTab === 'clients' ? 'Premier Client Matrix' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
+                {activeTab === 'applications' ? 'Talent Acquisition' : activeTab === 'rfp' ? 'Mandate Inbox' : activeTab === 'clients' ? 'Premier Client Matrix' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
               </h2>
            </div>
            
@@ -299,33 +378,50 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
               className="px-10 py-5 bg-[#CC1414] text-white text-[11px] font-bold tracking-[0.3em] uppercase rounded-full hover:scale-105 transition-all shadow-xl shadow-red-500/20 flex items-center gap-3"
              >
                {activeTab === 'hero' ? <Edit2 size={18}/> : <Plus size={18}/>}
-               {activeTab === 'hero' ? 'Update Banner' : activeTab === 'clients' ? 'Invite Client' : 'Add Entity'}
+               {activeTab === 'hero' ? 'Update Banner' : activeTab === 'clients' ? 'Add Client' : 'Add Entity'}
              </button>
            )}
         </div>
 
         {/* --- CLIENT INVITATION FORM --- */}
-        {(invitingClient || (isEditing && activeTab !== 'clients')) && (
+        {invitingClient && (
            <div className={`p-12 rounded-3xl border shadow-2xl relative mb-12 animate-fade-in ${isDarkMode ? 'bg-[#111216] border-white/5' : 'bg-white border-slate-100'}`}>
                <div className="flex justify-between items-center mb-12">
-                  <h3 className="text-2xl font-serif">{invitingClient ? 'Invite Premier Client' : 'Editing Entity'}</h3>
-                  <button onClick={() => { setIsEditing(false); setInvitingClient(false); }} className="p-3 bg-slate-100 rounded-full hover:bg-slate-200"><X size={20}/></button>
+                  <h3 className="text-2xl font-serif">Add New Client</h3>
+                  <button onClick={() => setInvitingClient(false)} className="p-3 bg-slate-100 rounded-full hover:bg-slate-200"><X size={20}/></button>
                </div>
                
-               {invitingClient ? (
-                 <div className="grid grid-cols-2 gap-8">
-                     <InputField label="Client Name" value={activeEntity.name} onChange={(v: string) => setActiveEntity({...activeEntity, name: v})} isDark={isDarkMode} />
-                     <InputField label="Company Name" value={activeEntity.companyName} onChange={(v: string) => setActiveEntity({...activeEntity, companyName: v})} isDark={isDarkMode} />
-                     <InputField label="Email Address" value={activeEntity.email} onChange={(v: string) => setActiveEntity({...activeEntity, email: v})} isDark={isDarkMode} />
-                     <InputField label="Mobile Number" value={activeEntity.mobile} onChange={(v: string) => setActiveEntity({...activeEntity, mobile: v})} isDark={isDarkMode} />
-                 </div>
-               ) : (
-                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
-                    <div className="lg:col-span-12">
-                       <InputField label="Title/Name" value={activeEntity.title || activeEntity.name || ''} onChange={(v: string) => activeEntity.title !== undefined ? setActiveEntity({...activeEntity, title: v}) : setActiveEntity({...activeEntity, name: v})} isDark={isDarkMode} />
-                    </div>
-                 </div>
-               )}
+               <div className="grid grid-cols-2 gap-8">
+                   <InputField label="Client Name" value={activeEntity.name} onChange={(v: string) => setActiveEntity({...activeEntity, name: v})} isDark={isDarkMode} />
+                   <InputField label="Company Name" value={activeEntity.companyName} onChange={(v: string) => setActiveEntity({...activeEntity, companyName: v})} isDark={isDarkMode} />
+                   <InputField label="Email Address" value={activeEntity.email} onChange={(v: string) => setActiveEntity({...activeEntity, email: v})} isDark={isDarkMode} />
+                   <InputField label="Mobile Number" value={activeEntity.mobile} onChange={(v: string) => setActiveEntity({...activeEntity, mobile: v})} isDark={isDarkMode} />
+                   
+                   {/* NEW PASSWORD FIELD */}
+                   <div className="space-y-4">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                         <ShieldCheck size={14}/> Access Password
+                      </label>
+                      <input 
+                        type="text"
+                        value={activeEntity.password || ''}
+                        onChange={e => setActiveEntity({...activeEntity, password: e.target.value})}
+                        className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-1 focus:ring-[#CC1414] font-light ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
+                        placeholder="Create initial password"
+                      />
+                   </div>
+
+                   <div className="col-span-2">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">Full Address</label>
+                      <textarea 
+                         value={activeEntity.address} 
+                         onChange={(e) => setActiveEntity({...activeEntity, address: e.target.value})} 
+                         className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-1 focus:ring-[#CC1414] font-light ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
+                         placeholder="Enter billing address..."
+                         rows={3}
+                      />
+                   </div>
+               </div>
 
                <div className="pt-12 border-t border-white/5 flex gap-6 mt-8">
                   <button 
@@ -334,14 +430,143 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
                      className="flex-1 py-5 bg-[#CC1414] text-white text-[11px] font-bold uppercase tracking-[0.3em] rounded-2xl shadow-xl hover:bg-slate-900 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
                   >
                      {isSaving ? <Loader2 className="animate-spin" size={18}/> : <Save size={18}/>}
-                     {invitingClient ? 'SEND INVITATION' : 'SAVE CHANGES'}
+                     CREATE CLIENT DASHBOARD
+                  </button>
+               </div>
+           </div>
+        )}
+
+        {/* --- FULL ENTITY EDITOR (Restored & Enhanced) --- */}
+        {isEditing && !invitingClient && activeTab !== 'clients' && (
+           <div className={`p-12 rounded-3xl border shadow-2xl relative mb-12 animate-fade-in ${isDarkMode ? 'bg-[#111216] border-white/5' : 'bg-white border-slate-100'}`}>
+               <div className="flex justify-between items-center mb-12">
+                  <h3 className="text-2xl font-serif">Editing {activeTab === 'hero' ? 'Hero Banner' : activeTab.slice(0, -1)}</h3>
+                  <button onClick={() => setIsEditing(false)} className="p-3 bg-slate-100 rounded-full hover:bg-slate-200"><X size={20}/></button>
+               </div>
+
+               <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
+                  
+                  {/* HERO EDITOR */}
+                  {activeTab === 'hero' && (
+                     <div className="lg:col-span-8 space-y-8">
+                        <InputField label="Headline" value={activeEntity.headline} onChange={(v: string) => setActiveEntity({...activeEntity, headline: v})} isDark={isDarkMode} />
+                        <InputField label="Subtext" value={activeEntity.subtext} onChange={(v: string) => setActiveEntity({...activeEntity, subtext: v})} isDark={isDarkMode} />
+                        <InputField label="CTA Text" value={activeEntity.ctaText} onChange={(v: string) => setActiveEntity({...activeEntity, ctaText: v})} isDark={isDarkMode} />
+                        <FileUploader label="Background Image" value={activeEntity.backgroundImage} onChange={(v: string) => setActiveEntity({...activeEntity, backgroundImage: v})} icon={<ImageIcon/>} />
+                     </div>
+                  )}
+
+                  {/* INSIGHTS / REPORTS / CASE STUDIES EDITOR */}
+                  {['insights', 'reports', 'casestudy', 'podcasts'].includes(activeTab) && (
+                     <>
+                        <div className="lg:col-span-8 space-y-8">
+                           <div className="grid grid-cols-2 gap-8">
+                              <InputField label="Title" value={activeEntity.title} onChange={(v: string) => setActiveEntity({...activeEntity, title: v})} isDark={isDarkMode} />
+                              <InputField label="Category" value={activeEntity.category} onChange={(v: string) => setActiveEntity({...activeEntity, category: v})} isDark={isDarkMode} />
+                           </div>
+                           <div className="space-y-4">
+                              <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Short Description</label>
+                              <textarea className={`w-full p-4 border rounded-xl h-32 ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200'}`} value={activeEntity.desc} onChange={e => setActiveEntity({...activeEntity, desc: e.target.value})} />
+                           </div>
+                           <div className="space-y-4">
+                              <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Full Content / Analysis</label>
+                              <textarea className={`w-full p-4 border rounded-xl h-64 font-mono text-sm ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200'}`} value={activeEntity.content} onChange={e => setActiveEntity({...activeEntity, content: e.target.value})} />
+                           </div>
+                           {activeTab === 'reports' && (
+                              <InputField label="PDF Download URL" value={activeEntity.pdfUrl} onChange={(v: string) => setActiveEntity({...activeEntity, pdfUrl: v})} isDark={isDarkMode} />
+                           )}
+                        </div>
+                        <div className="lg:col-span-4 space-y-8">
+                           <FileUploader label="Thumbnail Image" value={activeEntity.image} onChange={(v: string) => setActiveEntity({...activeEntity, image: v})} icon={<ImageIcon/>} />
+                           <FileUploader label="Banner Image (Detail Page)" value={activeEntity.bannerImage} onChange={(v: string) => setActiveEntity({...activeEntity, bannerImage: v})} icon={<ImageIcon/>} />
+                           
+                           <div className="p-6 border rounded-xl space-y-4">
+                              <label className="flex items-center gap-4 cursor-pointer">
+                                 <input type="checkbox" checked={activeEntity.isFeatured} onChange={e => setActiveEntity({...activeEntity, isFeatured: e.target.checked})} className="w-5 h-5 accent-[#CC1414]" />
+                                 <span className="text-sm font-bold">Feature in Carousel</span>
+                              </label>
+                              <label className="flex items-center gap-4 cursor-pointer">
+                                 <input type="checkbox" checked={activeEntity.showInHero} onChange={e => setActiveEntity({...activeEntity, showInHero: e.target.checked})} className="w-5 h-5 accent-[#CC1414]" />
+                                 <span className="text-sm font-bold">Show in Hero Slider</span>
+                              </label>
+                           </div>
+                        </div>
+                     </>
+                  )}
+
+                  {/* AUTHORS EDITOR */}
+                  {activeTab === 'authors' && (
+                     <>
+                       <div className="lg:col-span-8 space-y-8">
+                          <div className="grid grid-cols-2 gap-8">
+                             <InputField label="Full Name" value={activeEntity.name} onChange={(v: string) => setActiveEntity({...activeEntity, name: v})} isDark={isDarkMode} />
+                             <InputField label="Title / Designation" value={activeEntity.title} onChange={(v: string) => setActiveEntity({...activeEntity, title: v})} isDark={isDarkMode} />
+                          </div>
+                          <InputField label="Email" value={activeEntity.email} onChange={(v: string) => setActiveEntity({...activeEntity, email: v})} isDark={isDarkMode} />
+                          <div className="space-y-4">
+                              <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Biography</label>
+                              <textarea className={`w-full p-4 border rounded-xl h-32 ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200'}`} value={activeEntity.bio} onChange={e => setActiveEntity({...activeEntity, bio: e.target.value})} />
+                           </div>
+                       </div>
+                       <div className="lg:col-span-4">
+                          <FileUploader label="Profile Photo" value={activeEntity.image} onChange={(v: string) => setActiveEntity({...activeEntity, image: v})} icon={<Users/>} />
+                       </div>
+                     </>
+                  )}
+
+                  {/* OFFICES EDITOR */}
+                  {activeTab === 'offices' && (
+                     <div className="lg:col-span-8 space-y-8">
+                        <InputField label="City" value={activeEntity.city} onChange={(v: string) => setActiveEntity({...activeEntity, city: v})} isDark={isDarkMode} />
+                        <InputField label="Address" value={activeEntity.address} onChange={(v: string) => setActiveEntity({...activeEntity, address: v})} isDark={isDarkMode} />
+                        <div className="grid grid-cols-2 gap-8">
+                           <InputField label="Phone" value={activeEntity.phone} onChange={(v: string) => setActiveEntity({...activeEntity, phone: v})} isDark={isDarkMode} />
+                           <InputField label="Email" value={activeEntity.email} onChange={(v: string) => setActiveEntity({...activeEntity, email: v})} isDark={isDarkMode} />
+                        </div>
+                        <FileUploader label="Office Image" value={activeEntity.image} onChange={(v: string) => setActiveEntity({...activeEntity, image: v})} icon={<MapPin/>} />
+                     </div>
+                  )}
+
+                  {/* JOBS EDITOR */}
+                  {activeTab === 'jobs' && (
+                     <div className="lg:col-span-8 space-y-8">
+                        <InputField label="Job Title" value={activeEntity.title} onChange={(v: string) => setActiveEntity({...activeEntity, title: v})} isDark={isDarkMode} />
+                        <div className="grid grid-cols-2 gap-8">
+                           <InputField label="Department" value={activeEntity.department} onChange={(v: string) => setActiveEntity({...activeEntity, department: v})} isDark={isDarkMode} />
+                           <InputField label="Location" value={activeEntity.location} onChange={(v: string) => setActiveEntity({...activeEntity, location: v})} isDark={isDarkMode} />
+                        </div>
+                        <div className="space-y-4">
+                           <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Job Description</label>
+                           <textarea className={`w-full p-4 border rounded-xl h-48 ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200'}`} value={activeEntity.description} onChange={e => setActiveEntity({...activeEntity, description: e.target.value})} />
+                        </div>
+                        <select 
+                           value={activeEntity.status} 
+                           onChange={e => setActiveEntity({...activeEntity, status: e.target.value})}
+                           className={`w-full p-4 border rounded-xl ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200'}`}
+                        >
+                           <option value="active">Active</option>
+                           <option value="closed">Closed</option>
+                        </select>
+                     </div>
+                  )}
+
+               </div>
+
+               <div className="pt-12 border-t border-white/5 flex gap-6 mt-8">
+                  <button 
+                     onClick={handleSave} 
+                     disabled={isSaving}
+                     className="flex-1 py-5 bg-[#CC1414] text-white text-[11px] font-bold uppercase tracking-[0.3em] rounded-2xl shadow-xl hover:bg-slate-900 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                  >
+                     {isSaving ? <Loader2 className="animate-spin" size={18}/> : <Save size={18}/>}
+                     SAVE CHANGES
                   </button>
                </div>
            </div>
         )}
 
         {/* --- CLIENTS LIST --- */}
-        {activeTab === 'clients' && !managingClient && (
+        {activeTab === 'clients' && !managingClient && !invitingClient && (
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {premierClients.map(client => (
                  <div key={client.uid} className={`p-8 rounded-3xl border group hover:shadow-2xl transition-all ${isDarkMode ? 'bg-[#111216] border-white/5' : 'bg-white border-slate-100'}`}>
@@ -483,10 +708,20 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
            </div>
         )}
 
-        {/* Existing Lists */}
+        {/* Existing Lists & Restored Missing Views */}
         {!isEditing && !invitingClient && !managingClient && activeTab !== 'clients' && (
            <div className="space-y-8">
-              {/* Reuse list logic for jobs etc. */}
+              
+              {/* APPLICATIONS LIST */}
+              {activeTab === 'applications' && renderApplicationsTable()}
+
+              {/* APPOINTMENTS LIST */}
+              {activeTab === 'appointments' && renderInquiriesTable('appointment')}
+
+              {/* RFP/MANDATE INBOX LIST */}
+              {activeTab === 'rfp' && renderInquiriesTable('rfp')}
+
+              {/* JOBS LIST */}
               {activeTab === 'jobs' && (
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     {jobs.map(job => (
@@ -495,6 +730,35 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
                          <div className="flex gap-2 mt-4"><button onClick={() => handleEdit(job)} className="px-4 py-2 bg-slate-100 text-xs font-bold rounded-lg">Edit</button></div>
                       </div>
                     ))}
+                 </div>
+              )}
+              {/* Default List View for other entities (like Insights) - Restored */}
+              {['insights', 'reports', 'podcasts', 'casestudy'].includes(activeTab) && (
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {insights.filter(i => i.type === activeTab).map(item => (
+                       <div key={item.id} className={`p-6 rounded-3xl border group ${isDarkMode ? 'bg-[#111216] border-white/5' : 'bg-white border-slate-100'}`}>
+                          <div className="aspect-video bg-slate-100 rounded-xl overflow-hidden mb-4 relative">
+                             <img src={item.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform"/>
+                             {item.isFeatured && <span className="absolute top-2 right-2 bg-red-600 text-white text-[9px] font-bold px-2 py-1 rounded">FEATURED</span>}
+                          </div>
+                          <h4 className="font-serif text-lg leading-tight mb-2 line-clamp-2">{item.title}</h4>
+                          <div className="flex justify-between items-center mt-4">
+                             <button onClick={() => handleEdit(item)} className="text-[10px] font-bold uppercase bg-slate-100 px-4 py-2 rounded-lg hover:bg-slate-200">Edit</button>
+                             <button onClick={() => handleDelete(item.id)} className="text-red-400 hover:text-red-600"><Trash2 size={16}/></button>
+                          </div>
+                       </div>
+                    ))}
+                 </div>
+              )}
+              {activeTab === 'hero' && hero && (
+                 <div className="p-12 rounded-3xl bg-slate-900 text-white relative overflow-hidden group cursor-pointer" onClick={() => handleEdit(hero)}>
+                    <img src={hero.backgroundImage} className="absolute inset-0 w-full h-full object-cover opacity-30" />
+                    <div className="relative z-10">
+                       <h1 className="text-4xl font-serif mb-4">{hero.headline}</h1>
+                       <p className="text-xl font-light opacity-80">{hero.subtext}</p>
+                       <div className="mt-8 inline-block px-6 py-2 border border-white/30 rounded-full text-xs font-bold uppercase">{hero.ctaText}</div>
+                    </div>
+                    <div className="absolute top-4 right-4 bg-white/10 p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><Edit2 size={20}/></div>
                  </div>
               )}
            </div>

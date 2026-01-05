@@ -13,8 +13,22 @@ import {
   orderBy,
   where
 } from "firebase/firestore";
+import { initializeApp, getApp, getApps, deleteApp } from "firebase/app";
+import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth";
 import { db } from "../firebase";
 import { HeroContent, Insight, Author, OfficeLocation, Inquiry, Job, JobApplication, UserProfile, ClientDocument } from '../types';
+
+// Re-declare config for secondary app usage
+const firebaseConfig = {
+  apiKey: "AIzaSyCSoV1SsHB-0Ue-OcWXhh41lbek4URuHAg",
+  authDomain: "anandpandeyindia.firebaseapp.com",
+  databaseURL: "https://anandpandeyindia-default-rtdb.firebaseio.com",
+  projectId: "anandpandeyindia",
+  storageBucket: "anandpandeyindia.firebasestorage.app",
+  messagingSenderId: "1080997825126",
+  appId: "1:1080997825126:web:4e2508acd6b5ad17983ba7",
+  measurementId: "G-86TZWEFCFL"
+};
 
 const COLLECTIONS = {
   HERO: 'hero',
@@ -143,8 +157,6 @@ export const contentService = {
   },
 
   saveUserProfile: async (profile: UserProfile) => {
-    // If Admin invites a premier client, we save it directly. 
-    // If a user signs up, we merge to ensure we don't overwrite admin-set roles if they existed (pre-seeding).
     await setDoc(doc(db, COLLECTIONS.USERS, profile.uid), profile, { merge: true });
   },
 
@@ -155,42 +167,48 @@ export const contentService = {
 
   // --- CRM & ADMIN CLIENT MANAGEMENT ---
 
-  // Invite/Create a Premier Client (Admin Function)
-  invitePremierClient: async (clientData: { email: string, name: string, companyName: string, mobile: string }) => {
-    // We create a profile document keyed by Email (temporary) or a placeholder ID if they haven't signed up yet.
-    // However, best practice in Firebase without Admin SDK is:
-    // 1. Create a doc in 'users' with a generated ID (or email as ID if unique).
-    // 2. When they actually sign up/login, we might need to migrate this data or they need to use the exact email.
-    // STRATEGY: We will store "Pre-approved" emails in a separate collection or query users by email.
-    // SIMPLEST: Admin manually creates the record. 
-    
-    // We'll use a unique ID generator for the placeholder until they claim it, or just use email as ID if possible (not recommended for Auth UID).
-    // Better: We assume the Admin creates the profile, and when the user logs in via Google/Email, 
-    // we check if their email matches an existing 'premier' profile setup.
-    
-    // For this specific app, we will use a "Pre-Invite" logic where we save the profile.
-    // Since we don't have the UID yet, we'll index by Email in a separate 'invitations' way or just rely on the user claiming it.
-    
-    // ACTUALLY: Let's create a User Profile with a custom ID (e.g., email-slug) and when they auth, we merge.
-    // But Auth UID is different. 
-    // Solution: We will query the 'users' collection by 'email' on login.
-    
-    // So here, we just add a document to 'users' but since we don't know the UID, we might need a workaround.
-    // Workaround: We'll add it to a 'invites' collection. 
-    // On Login (AdminLogin.tsx), we check 'invites'. If found, we create the user profile with 'premier' role.
-    
-    // SIMPLIFIED FOR DEMO:
-    // We will just return the data, and let the Admin trigger an email.
-    // But to show them in the list, we need to save them.
-    const tempId = 'invite_' + clientData.email.replace(/[^a-zA-Z0-9]/g, '');
-    await setDoc(doc(db, COLLECTIONS.USERS, tempId), {
-      ...clientData,
-      uid: tempId,
-      role: 'premier',
-      createdAt: new Date().toISOString(),
-      isPending: true // Flag to indicate they haven't technically 'claimed' the account via Auth
-    });
-    return tempId;
+  // Create a Premier Client User (Email/Password) without logging out Admin
+  createPremierUser: async (clientData: { email: string, password?: string, name: string, companyName: string, mobile: string, address: string }) => {
+    // 1. Initialize a secondary app instance to avoid disrupting the current Admin session
+    const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
+    const secondaryAuth = getAuth(secondaryApp);
+
+    try {
+      // 2. Create the user in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, clientData.email, clientData.password || 'Welcome@123');
+      const uid = userCredential.user.uid;
+
+      // 3. Save the detailed profile to Firestore (using the MAIN app's db instance)
+      // Explicitly set role to 'premier' so they get the special dashboard
+      await setDoc(doc(db, COLLECTIONS.USERS, uid), {
+        uid,
+        email: clientData.email,
+        name: clientData.name,
+        companyName: clientData.companyName,
+        mobile: clientData.mobile,
+        address: clientData.address,
+        role: 'premier',
+        createdAt: new Date().toISOString()
+      });
+
+      // 4. Cleanup: Sign out and delete the secondary app
+      await signOut(secondaryAuth);
+      await deleteApp(secondaryApp);
+
+      return uid;
+    } catch (error: any) {
+      // Cleanup on error too
+      try { await deleteApp(secondaryApp); } catch(e) {} 
+      console.error("Error creating premier user:", error);
+      throw error;
+    }
+  },
+
+  // Legacy/Invite Only method (if password not provided)
+  invitePremierClient: async (clientData: any) => {
+     // This creates a placeholder doc, usually followed by email invitation flow
+     // But for direct admin creation, use createPremierUser
+     return await contentService.createPremierUser({ ...clientData, password: clientData.password || 'Welcome@123' });
   },
 
   getPremierClients: (callback: (clients: UserProfile[]) => void) => {
@@ -201,8 +219,6 @@ export const contentService = {
   },
 
   updateClientProfile: async (uid: string, data: Partial<UserProfile>) => {
-    // If it's a pending invite (custom ID), this still works.
-    // If it's a real user (Auth UID), this still works.
     await updateDoc(doc(db, COLLECTIONS.USERS, uid), data);
   },
 
@@ -274,8 +290,6 @@ export const contentService = {
   },
 
   submitApplication: async (app: Omit<JobApplication, 'id'>) => {
-    // Logic: If user applies, ensure their profile role is 'applicant' (unless they are premier/admin)
-    // We handle this loosely here.
     return await addDoc(collection(db, COLLECTIONS.APPLICATIONS), app);
   },
 
