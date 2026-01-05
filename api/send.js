@@ -24,10 +24,16 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { to, subject, html, replyTo } = req.body;
+    const { to, subject, html, replyTo, attachments } = req.body;
     
     // Generate plain text version
     const textVersion = html.replace(/<[^>]*>?/gm, '');
+
+    // Process attachments if they exist (Convert base64 string to Buffer)
+    const processedAttachments = attachments ? attachments.map(att => ({
+        filename: att.filename,
+        content: Buffer.from(att.content, 'base64')
+    })) : [];
 
     // Sending from the requested domain
     const { data, error } = await resend.emails.send({
@@ -37,6 +43,7 @@ export default async function handler(req, res) {
       subject: subject,
       html: html,
       text: textVersion,
+      attachments: processedAttachments,
       headers: {
         'X-Entity-Ref-ID': 'AKP-MANDATE-MATRIX',
         'X-Auto-Response-Suppress': 'OOF, DR, RN, NRN, AutoReply'

@@ -10,12 +10,14 @@ import {
   Sun, Moon, ChevronRight, Download, Link, ExternalLink,
   Heading1, Heading2, AlignLeft, Type, FileUp, Music, Database,
   Linkedin, MessageCircle, Mail, BookOpen, Star, Palette, List, Maximize2, Monitor,
-  UserCheck, GraduationCap, Eye, Loader2, AlertTriangle, Crown, FilePlus, Receipt, CreditCard
+  UserCheck, GraduationCap, Eye, Loader2, AlertTriangle, Crown, FilePlus, Receipt, CreditCard, Banknote
 } from 'lucide-react';
+import { pdf } from '@react-pdf/renderer'; // Import PDF generator
 import { contentService } from '../../services/contentService';
 import { emailService } from '../../services/emailService';
-import { HeroContent, Insight, Author, Inquiry, OfficeLocation, Job, JobApplication, UserProfile, ClientDocument, InvoiceDetails, InvoiceLineItem } from '../../types';
+import { HeroContent, Insight, Author, Inquiry, OfficeLocation, Job, JobApplication, UserProfile, ClientDocument, InvoiceDetails, InvoiceLineItem, PaymentRecord } from '../../types';
 import { InvoiceRenderer } from './InvoiceRenderer';
+import { InvoicePDF } from './InvoicePDF'; // Import the PDF Component
 
 interface AdminPortalProps {
   onLogout: () => void;
@@ -57,6 +59,15 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
   // Invoice Viewer State (Supports Invoice View & Receipt View)
   const [viewInvoice, setViewInvoice] = useState<{data: InvoiceDetails, mode: 'invoice' | 'receipt'} | null>(null);
   const [selectedClientForInvoice, setSelectedClientForInvoice] = useState<string>('');
+
+  // Payment Recording State
+  const [recordingPaymentFor, setRecordingPaymentFor] = useState<ClientDocument | null>(null);
+  const [paymentForm, setPaymentForm] = useState<PaymentRecord>({
+      amountCleared: 0,
+      date: new Date().toISOString().split('T')[0],
+      mode: 'NEFT/RTGS',
+      transactionReference: ''
+  });
 
   // Digital Invoice Form State
   const [invoiceForm, setInvoiceForm] = useState<InvoiceDetails>({
@@ -209,6 +220,15 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
          return;
      }
 
+     const targetClient = creatingGlobalInvoice 
+        ? premierClients.find(c => c.uid === targetClientId)
+        : managingClient;
+
+     if (!targetClient) {
+        alert("Client identification failed for email notification.");
+        return; 
+     }
+
      setIsSaving(true);
      const total = invoiceForm.items.reduce((sum, item) => sum + Number(item.amount), 0);
      const amountWords = `${total} ONLY`; 
@@ -217,6 +237,8 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
         totalAmount: total,
         amountInWords: amountWords.toUpperCase()
      };
+     
+     // 1. Save to DB (Auto-syncs to Dashboard via Firestore subscription)
      await contentService.addClientDocument({
         userId: targetClientId,
         type: 'invoice',
@@ -228,14 +250,76 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
         amount: `₹${total.toLocaleString()}`,
         invoiceDetails: finalInvoice
      });
+
+     // 2. Generate PDF and Send Email Notification
+     try {
+        // Generate PDF Blob
+        const blob = await pdf(<InvoicePDF data={finalInvoice} />).toBlob();
+        
+        // Convert Blob to Base64
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        reader.onloadend = async () => {
+            const base64data = reader.result?.toString().split(',')[1];
+            // Send email with attachment
+            await emailService.sendInvoiceNotification(targetClient, finalInvoice, base64data);
+        };
+     } catch (e) {
+        console.error("Failed to generate or send invoice email", e);
+     }
+
      setIsSaving(false);
      setUploadDocType('document');
      setCreatingGlobalInvoice(false);
   };
 
-  const recordPayment = async (docId: string) => {
-      if(!confirm("Confirm payment receipt? This will generate a receipt and mark invoice as paid.")) return;
-      await contentService.updateDocumentStatus(docId, 'Paid', new Date().toISOString());
+  const initiatePaymentRecord = (doc: ClientDocument) => {
+      if(!doc.invoiceDetails) return;
+      setRecordingPaymentFor(doc);
+      setPaymentForm({
+          amountCleared: doc.invoiceDetails.totalAmount,
+          date: new Date().toISOString().split('T')[0],
+          mode: 'NEFT/RTGS',
+          transactionReference: ''
+      });
+  };
+
+  const confirmPayment = async () => {
+      if(!recordingPaymentFor || !paymentForm.amountCleared) return;
+      
+      setIsSaving(true);
+      
+      // 1. Update Database
+      await contentService.updateDocumentStatus(recordingPaymentFor.id, 'Paid', paymentForm);
+
+      // 2. Prepare Receipt Data
+      const targetClient = premierClients.find(c => c.uid === recordingPaymentFor.userId);
+      
+      if (targetClient && recordingPaymentFor.invoiceDetails) {
+          const updatedInvoiceDetails: InvoiceDetails = {
+              ...recordingPaymentFor.invoiceDetails,
+              payment: paymentForm
+          };
+
+          try {
+              // 3. Generate Receipt PDF
+              // InvoicePDF automatically switches to Receipt Mode if `payment` exists
+              const blob = await pdf(<InvoicePDF data={updatedInvoiceDetails} />).toBlob();
+              
+              // 4. Convert to Base64 & Send Email
+              const reader = new FileReader();
+              reader.readAsDataURL(blob);
+              reader.onloadend = async () => {
+                  const base64data = reader.result?.toString().split(',')[1];
+                  await emailService.sendReceiptNotification(targetClient, updatedInvoiceDetails, base64data);
+              };
+          } catch (error) {
+              console.error("Failed to send receipt email:", error);
+          }
+      }
+
+      setIsSaving(false);
+      setRecordingPaymentFor(null);
   };
 
   const updateInvoiceItem = (idx: number, field: keyof InvoiceLineItem, value: any) => {
@@ -288,6 +372,68 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
   };
 
   // --- RENDER HELPERS ---
+
+  const renderPaymentModal = () => (
+      <div className="fixed inset-0 z-[200] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden animate-reveal-up shadow-2xl">
+              <div className="bg-slate-50 p-8 border-b border-slate-100 flex justify-between items-center">
+                  <div>
+                      <h3 className="text-xl font-serif text-slate-900 mb-1">Record Payment</h3>
+                      <p className="text-xs text-slate-500 uppercase tracking-widest">{recordingPaymentFor?.title}</p>
+                  </div>
+                  <button onClick={() => setRecordingPaymentFor(null)} className="p-2 hover:bg-white rounded-full transition-colors"><X size={20}/></button>
+              </div>
+              <div className="p-8 space-y-6">
+                  <InputField 
+                    label="Amount Cleared (INR)" 
+                    type="number"
+                    value={paymentForm.amountCleared} 
+                    onChange={(v: any) => setPaymentForm({...paymentForm, amountCleared: Number(v)})} 
+                  />
+                  <div className="grid grid-cols-2 gap-6">
+                      <InputField 
+                        label="Payment Date" 
+                        type="date"
+                        value={paymentForm.date} 
+                        onChange={(v: string) => setPaymentForm({...paymentForm, date: v})} 
+                      />
+                      <div className="space-y-4">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                            Mode
+                        </label>
+                        <select 
+                            value={paymentForm.mode}
+                            onChange={(e: any) => setPaymentForm({...paymentForm, mode: e.target.value})}
+                            className="w-full p-4 border rounded-xl focus:outline-none focus:ring-1 focus:ring-[#CC1414] font-light bg-white border-slate-200 text-slate-900"
+                        >
+                            <option>NEFT/RTGS</option>
+                            <option>Cheque</option>
+                            <option>UPI</option>
+                            <option>Wire Transfer</option>
+                            <option>Cash</option>
+                        </select>
+                      </div>
+                  </div>
+                  <InputField 
+                    label="Transaction Reference / Cheque No." 
+                    value={paymentForm.transactionReference} 
+                    onChange={(v: string) => setPaymentForm({...paymentForm, transactionReference: v})} 
+                    placeholder="e.g. UTR-12345678"
+                  />
+              </div>
+              <div className="p-8 border-t border-slate-100 bg-slate-50 flex justify-end gap-4">
+                  <button onClick={() => setRecordingPaymentFor(null)} className="px-6 py-3 text-slate-500 font-bold text-xs uppercase tracking-widest hover:text-slate-900">Cancel</button>
+                  <button 
+                    onClick={confirmPayment}
+                    disabled={isSaving}
+                    className="px-8 py-3 bg-[#CC1414] text-white font-bold text-xs uppercase tracking-widest rounded-xl hover:bg-slate-900 transition-all flex items-center gap-2"
+                  >
+                      {isSaving ? <Loader2 className="animate-spin" size={14}/> : <CheckCircle size={14}/>} Confirm Payment
+                  </button>
+              </div>
+          </div>
+      </div>
+  );
 
   const renderDigitalInvoiceForm = () => (
     <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 space-y-4">
@@ -365,8 +511,8 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
                       </td>
                       <td className="p-6 text-right flex justify-end gap-2">
                          {inv.status !== 'Paid' && (
-                             <button onClick={() => recordPayment(inv.id)} className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 text-[10px] font-bold uppercase flex items-center gap-1">
-                                 <CheckCircle size={14}/> Record Pay
+                             <button onClick={() => initiatePaymentRecord(inv)} className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 text-[10px] font-bold uppercase flex items-center gap-1">
+                                 <Banknote size={14}/> Record Pay
                              </button>
                          )}
                          {/* View Invoice Action */}
@@ -388,6 +534,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
     </div>
   );
 
+  // ... (keeping other render functions like renderApplicationsTable, renderInquiriesTable unchanged) ...
   const renderApplicationsTable = () => (
     <div className="bg-white border border-slate-100 rounded-3xl overflow-hidden shadow-sm">
        <table className="w-full text-left border-collapse">
@@ -480,6 +627,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
   return (
     <div className={`flex h-screen overflow-hidden ${isDarkMode ? 'bg-[#0A0B0E]' : 'bg-[#F4F7FE]'}`}>
       {viewInvoice && <InvoiceRenderer data={viewInvoice.data} mode={viewInvoice.mode} onClose={() => setViewInvoice(null)} />}
+      {recordingPaymentFor && renderPaymentModal()}
       
       <aside className={`w-[290px] flex flex-col h-full shrink-0 border-r ${isDarkMode ? 'bg-[#111216] border-white/5' : 'bg-white border-slate-200'}`}>
         <div className="p-8 pb-4">
@@ -543,6 +691,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
             </div>
         )}
 
+        {/* ... (Existing Client Invitation Form & Entity Editor - Unchanged) ... */}
         {/* --- CLIENT INVITATION FORM --- */}
         {invitingClient && (
            <div className={`p-12 rounded-3xl border shadow-2xl relative mb-12 animate-fade-in ${isDarkMode ? 'bg-[#111216] border-white/5' : 'bg-white border-slate-100'}`}>
@@ -596,7 +745,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
            </div>
         )}
 
-        {/* --- FULL ENTITY EDITOR (Restored & Enhanced) --- */}
+        {/* --- FULL ENTITY EDITOR --- */}
         {isEditing && !invitingClient && activeTab !== 'clients' && activeTab !== 'finance' && (
            <div className={`p-12 rounded-3xl border shadow-2xl relative mb-12 animate-fade-in ${isDarkMode ? 'bg-[#111216] border-white/5' : 'bg-white border-slate-100'}`}>
                <div className="flex justify-between items-center mb-12">
@@ -605,7 +754,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
                </div>
 
                <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
-                  
+                  {/* ... (Existing entity editors for hero, insights, etc. - Unchanged) ... */}
                   {/* HERO EDITOR */}
                   {activeTab === 'hero' && (
                      <div className="lg:col-span-8 space-y-8">
@@ -709,7 +858,6 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
                         </select>
                      </div>
                   )}
-
                </div>
 
                <div className="pt-12 border-t border-white/5 flex gap-6 mt-8">
@@ -725,6 +873,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
            </div>
         )}
 
+        {/* ... (Existing Clients List & Client Manager - Unchanged) ... */}
         {/* --- CLIENTS LIST --- */}
         {activeTab === 'clients' && !managingClient && !invitingClient && (
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -843,7 +992,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
            </div>
         )}
 
-        {/* Existing Lists & Restored Missing Views */}
+        {/* Existing Lists */}
         {!isEditing && !invitingClient && !managingClient && !creatingGlobalInvoice && activeTab !== 'clients' && (
            <div className="space-y-8">
               
@@ -918,7 +1067,7 @@ const SidebarLink = ({ id, active, set, label, icon, isDark, badge }: any) => (
   </button>
 );
 
-const InputField = ({ label, value, onChange, isDark, icon, type = "text" }: any) => (
+const InputField = ({ label, value, onChange, isDark, icon, type = "text", placeholder }: any) => (
   <div className="space-y-4">
     <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2">
        {icon} {label}
@@ -927,6 +1076,7 @@ const InputField = ({ label, value, onChange, isDark, icon, type = "text" }: any
       type={type}
       value={value || ''}
       onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
       className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-1 focus:ring-[#CC1414] font-light ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
     />
   </div>

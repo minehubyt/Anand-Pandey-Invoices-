@@ -16,7 +16,7 @@ import {
 import { initializeApp, getApp, getApps, deleteApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth";
 import { db } from "../firebase";
-import { HeroContent, Insight, Author, OfficeLocation, Inquiry, Job, JobApplication, UserProfile, ClientDocument } from '../types';
+import { HeroContent, Insight, Author, OfficeLocation, Inquiry, Job, JobApplication, UserProfile, ClientDocument, PaymentRecord } from '../types';
 
 // Re-declare config for secondary app usage
 const firebaseConfig = {
@@ -259,11 +259,24 @@ export const contentService = {
     await addDoc(collection(db, COLLECTIONS.DOCUMENTS), docData);
   },
 
-  updateDocumentStatus: async (docId: string, status: string, paymentDate?: string) => {
-    await updateDoc(doc(db, COLLECTIONS.DOCUMENTS, docId), { 
-       status,
-       ...(paymentDate && { paymentDate }) 
-    });
+  updateDocumentStatus: async (docId: string, status: string, paymentDetails?: PaymentRecord) => {
+    // We first get the current document to merge payment details into invoiceDetails if it exists
+    const docRef = doc(db, COLLECTIONS.DOCUMENTS, docId);
+    const docSnap = await getDoc(docRef);
+    
+    if (docSnap.exists()) {
+        const currentData = docSnap.data() as ClientDocument;
+        const updatedInvoiceDetails = currentData.invoiceDetails ? {
+            ...currentData.invoiceDetails,
+            payment: paymentDetails
+        } : undefined;
+
+        await updateDoc(docRef, { 
+            status,
+            ...(paymentDetails && { paymentDate: paymentDetails.date }),
+            ...(updatedInvoiceDetails && { invoiceDetails: updatedInvoiceDetails })
+        });
+    }
   },
 
   deleteClientDocument: async (id: string) => {

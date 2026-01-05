@@ -109,6 +109,13 @@ export interface InvoiceLineItem {
   amount: number;
 }
 
+export interface PaymentRecord {
+  amountCleared: number;
+  date: string;
+  mode: 'NEFT/RTGS' | 'Cheque' | 'UPI' | 'Cash' | 'Wire Transfer';
+  transactionReference: string;
+}
+
 export interface InvoiceDetails {
   invoiceNo: string;
   date: string;
@@ -120,6 +127,7 @@ export interface InvoiceDetails {
   totalAmount: number;
   amountInWords: string;
   terms: string[];
+  payment?: PaymentRecord;
 }
 
 export interface ClientDocument {

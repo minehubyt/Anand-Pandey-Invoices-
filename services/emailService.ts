@@ -129,12 +129,12 @@ const generateExecutiveTemplate = (
 };
 
 export const emailService = {
-  send: async (to: string, subject: string, body: string, replyTo?: string) => {
+  send: async (to: string, subject: string, body: string, replyTo?: string, attachments: any[] = []) => {
     try {
       const response = await fetch('/api/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to, subject, html: body, replyTo })
+        body: JSON.stringify({ to, subject, html: body, replyTo, attachments })
       });
       if (response.ok) return true;
       if (response.status === 400) console.warn('Email Service Warning: Likely Free Tier Limit.', await response.json());
@@ -209,6 +209,92 @@ export const emailService = {
     if (status === 'Interview') body += `<p>We will contact you shortly to schedule.</p>`;
     const html = generateExecutiveTemplate("Application Status", name, body, "STATUS UPDATE", "");
     await emailService.send(email, subject, html);
+  },
+
+  sendInvoiceNotification: async (client: any, invoice: any, pdfBase64?: string) => {
+    const formattedDate = new Date(invoice.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+    const overviewBody = `
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 10px;">
+        <tr>
+            <td style="padding-bottom: 8px; font-size: 14px; color: #64748B;">Invoice No:</td>
+            <td style="padding-bottom: 8px; font-size: 14px; font-weight: 700; color: #0A1931; text-align: right;">${invoice.invoiceNo}</td>
+        </tr>
+        <tr>
+            <td style="padding-bottom: 8px; font-size: 14px; color: #64748B;">Date:</td>
+            <td style="padding-bottom: 8px; font-size: 14px; font-weight: 700; color: #0A1931; text-align: right;">${formattedDate}</td>
+        </tr>
+        <tr>
+            <td style="padding-top: 8px; border-top: 1px solid #e2e8f0; font-size: 16px; font-weight: 700; color: #0A1931;">Total Amount:</td>
+            <td style="padding-top: 8px; border-top: 1px solid #e2e8f0; font-size: 16px; font-weight: 700; color: #CC1414; text-align: right;">₹${invoice.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+        </tr>
+      </table>
+      <div style="margin-top: 20px; font-size: 13px; color: #64748B; text-align: center;">
+        Please find the invoice attached as a PDF.<br>
+        Log in to the secure portal to view the detailed breakdown and process payment.
+      </div>
+    `;
+
+    const html = generateExecutiveTemplate(
+      "Invoice Generated",
+      client.name,
+      `A new invoice (#${invoice.invoiceNo}) has been generated for your account.`,
+      "PAYMENT DUE",
+      overviewBody,
+      "https://anand-pandey-invoices.vercel.app/login",
+      "View Invoice"
+    );
+
+    const attachments = pdfBase64 ? [{
+        filename: `Invoice_${invoice.invoiceNo}.pdf`,
+        content: pdfBase64
+    }] : [];
+
+    await emailService.send(client.email, `Invoice #${invoice.invoiceNo} from AK Pandey & Associates`, html, undefined, attachments);
+  },
+
+  sendReceiptNotification: async (client: any, invoice: any, pdfBase64?: string) => {
+    const formattedDate = new Date(invoice.payment?.date || new Date()).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+    const overviewBody = `
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 10px;">
+        <tr>
+            <td style="padding-bottom: 8px; font-size: 14px; color: #64748B;">Receipt No:</td>
+            <td style="padding-bottom: 8px; font-size: 14px; font-weight: 700; color: #0A1931; text-align: right;">RCP-${invoice.invoiceNo}</td>
+        </tr>
+        <tr>
+            <td style="padding-bottom: 8px; font-size: 14px; color: #64748B;">Date Paid:</td>
+            <td style="padding-bottom: 8px; font-size: 14px; font-weight: 700; color: #0A1931; text-align: right;">${formattedDate}</td>
+        </tr>
+        <tr>
+            <td style="padding-bottom: 8px; font-size: 14px; color: #64748B;">Payment Mode:</td>
+            <td style="padding-bottom: 8px; font-size: 14px; font-weight: 700; color: #0A1931; text-align: right;">${invoice.payment?.mode}</td>
+        </tr>
+        <tr>
+            <td style="padding-top: 8px; border-top: 1px solid #e2e8f0; font-size: 16px; font-weight: 700; color: #0A1931;">Amount Cleared:</td>
+            <td style="padding-top: 8px; border-top: 1px solid #e2e8f0; font-size: 16px; font-weight: 700; color: #15803d; text-align: right;">₹${invoice.payment?.amountCleared.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+        </tr>
+      </table>
+      <div style="margin-top: 20px; font-size: 13px; color: #64748B; text-align: center;">
+        We acknowledge receipt of your payment with thanks.<br>
+        The official receipt is attached to this email.
+      </div>
+    `;
+
+    const html = generateExecutiveTemplate(
+      "Payment Received",
+      client.name,
+      `We have successfully received payment for Invoice #${invoice.invoiceNo}.`,
+      "PAYMENT ACKNOWLEDGEMENT",
+      overviewBody,
+      "https://anand-pandey-invoices.vercel.app/login",
+      "View History"
+    );
+
+    const attachments = pdfBase64 ? [{
+        filename: `Receipt_${invoice.invoiceNo}.pdf`,
+        content: pdfBase64
+    }] : [];
+
+    await emailService.send(client.email, `Payment Receipt: Invoice #${invoice.invoiceNo}`, html, undefined, attachments);
   },
 
   sendPremierInvitation: async (data: any) => {

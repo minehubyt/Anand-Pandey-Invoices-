@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { X, Printer, Download, CheckCircle } from 'lucide-react';
+import { X, Printer, Download, CheckCircle, Receipt, Calendar, CreditCard, Hash } from 'lucide-react';
 import { InvoiceDetails } from '../../types';
 
 interface InvoiceRendererProps {
@@ -40,7 +40,6 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
           {/* Header */}
           <div className="flex justify-between items-start mb-12">
             <div className="flex flex-col">
-               {/* Resized Logo for A4 Perfect Match */}
                <div className="flex items-center font-sans uppercase tracking-[0.15em] text-[#A6192E] font-bold mb-4">
                   <span className="text-2xl leading-none">AK PANDEY</span>
                   <span className="text-sm mx-1.5 self-center">&</span>
@@ -59,60 +58,93 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
           {/* Title & Status */}
           <div className="border-b-2 border-black pb-2 mb-8 flex justify-between items-end">
              <h1 className="text-lg font-bold text-black uppercase tracking-tight">
-                {mode === 'receipt' ? 'Official Payment Receipt' : 'Professional Fee Invoice'}
+                {mode === 'receipt' ? 'PAYMENT RECEIPT' : 'PROFESSIONAL FEE INVOICE'}
              </h1>
-             {mode === 'receipt' && (
+             {mode === 'receipt' ? (
                 <div className="flex items-center gap-2 text-green-700 border border-green-700 px-3 py-1 rounded-sm">
                    <CheckCircle size={14} />
-                   <span className="text-[10px] font-bold uppercase tracking-widest">PAID IN FULL</span>
+                   <span className="text-[10px] font-bold uppercase tracking-widest">CLEARED</span>
                 </div>
+             ) : (
+                <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">ORIGINAL FOR RECIPIENT</div>
              )}
           </div>
 
-          {/* Details Grid */}
-          <div className="grid grid-cols-2 gap-x-12 gap-y-1 mb-10 text-[12px]">
+          {/* RECEIPT SPECIFIC HEADER */}
+          {mode === 'receipt' && data.payment && (
+             <div className="bg-slate-50 p-6 mb-8 border border-slate-100 rounded-sm">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-[11px]">
+                   <div>
+                      <p className="font-bold text-slate-400 uppercase tracking-widest mb-1">Receipt No</p>
+                      <p className="font-bold text-black text-sm">RCP-{data.invoiceNo}</p>
+                   </div>
+                   <div>
+                      <p className="font-bold text-slate-400 uppercase tracking-widest mb-1">Date Paid</p>
+                      <p className="font-bold text-black text-sm">{new Date(data.payment.date).toLocaleDateString()}</p>
+                   </div>
+                   <div>
+                      <p className="font-bold text-slate-400 uppercase tracking-widest mb-1">Payment Mode</p>
+                      <p className="font-bold text-black text-sm">{data.payment.mode}</p>
+                   </div>
+                   <div>
+                      <p className="font-bold text-slate-400 uppercase tracking-widest mb-1">Ref No</p>
+                      <p className="font-bold text-black text-sm">{data.payment.transactionReference || 'N/A'}</p>
+                   </div>
+                </div>
+             </div>
+          )}
+
+          {/* Details Grid (Invoice Metadata) */}
+          <div className="grid grid-cols-2 gap-x-12 gap-y-4 mb-8 text-[12px]">
              <div className="grid grid-cols-[100px_1fr] gap-2">
-                <span className="font-bold">{mode === 'receipt' ? 'Receipt No.' : 'Invoice No.'}</span>
+                <span className="font-bold">Invoice No.</span>
                 <span>: &nbsp; {data.invoiceNo}</span>
              </div>
              <div className="grid grid-cols-[100px_1fr] gap-2">
-                <span className="font-bold">Date</span>
+                <span className="font-bold">Invoice Date</span>
                 <span>: &nbsp; {new Date(data.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}</span>
              </div>
 
              <div className="grid grid-cols-[100px_1fr] gap-2">
-                <span className="font-bold">Kind Attn.</span>
-                <span>: &nbsp; {data.kindAttn}</span>
-             </div>
-             <div className="grid grid-cols-[100px_1fr] gap-2">
                 <span className="font-bold">Client Name</span>
                 <span>: &nbsp; {data.clientName}</span>
              </div>
-
              <div className="grid grid-cols-[100px_1fr] gap-2">
-                <span className="font-bold">Address</span>
-                <span className="leading-relaxed whitespace-pre-line uppercase">: &nbsp; {data.clientAddress}</span>
+                <span className="font-bold">Kind Attn.</span>
+                <span>: &nbsp; {data.kindAttn}</span>
              </div>
           </div>
+
+          {/* Full Width Address Block */}
+          <div className="mb-10 text-[12px]">
+             <p className="font-bold mb-1">Billing Address:</p>
+             <p className="leading-relaxed whitespace-pre-line uppercase pl-[108px] -mt-5">{data.clientAddress}</p>
+          </div>
+
+          {mode === 'receipt' && (
+             <div className="mb-10 text-[13px] leading-relaxed italic text-slate-600 border-l-4 border-slate-200 pl-4 py-2">
+                "Received with thanks from <strong className="text-black not-italic">{data.clientName}</strong> a sum of <strong className="text-black not-italic">INR {data.totalAmount.toLocaleString()}</strong> towards the full and final settlement of Invoice No. {data.invoiceNo}."
+             </div>
+          )}
 
           {/* Line Items Table */}
           <div className="mb-2">
              <table className="w-full text-[12px]">
                 <thead>
-                   <tr className="text-left border-t-2 border-b-2 border-black">
-                      <th className="py-2 font-bold w-16 text-black">S.No.</th>
+                   <tr className="text-left border-t-2 border-b-2 border-black bg-slate-50">
+                      <th className="py-2 pl-2 font-bold w-16 text-black">S.No.</th>
                       <th className="py-2 font-bold text-black">Particulars</th>
-                      <th className="py-2 font-bold text-right text-black">Amount (INR)</th>
+                      <th className="py-2 pr-2 font-bold text-right text-black">Amount (INR)</th>
                    </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                    {data.items.map((item, idx) => (
                       <tr key={idx}>
-                         <td className="py-3 align-top">{idx + 1}.</td>
+                         <td className="py-3 pl-2 align-top">{idx + 1}.</td>
                          <td className="py-3 align-top pr-8">
                             <p className="font-medium text-black">{item.description}</p>
                          </td>
-                         <td className="py-3 align-top text-right font-medium text-black">
+                         <td className="py-3 pr-2 align-top text-right font-medium text-black">
                             {item.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                          </td>
                       </tr>
@@ -136,9 +168,9 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
              <p className="font-bold text-black uppercase">RUPEES {data.amountInWords}</p>
           </div>
 
-          {/* Terms & Footer */}
+          {/* Footer Terms */}
           <div className="text-[10px] leading-relaxed text-slate-700">
-             {mode === 'invoice' && (
+             {mode === 'invoice' ? (
                 <>
                    <p className="font-bold mb-2 uppercase text-black">Terms and Conditions</p>
                    <ul className="list-none space-y-1 pl-0 mb-8">
@@ -150,12 +182,11 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
                       ))}
                    </ul>
                 </>
-             )}
-             
-             {mode === 'receipt' && (
-                <p className="mb-8 italic text-slate-500">
-                   This receipt acknowledges the payment for the professional services rendered as per the invoice details above. Thank you for your continued trust in AK Pandey & Associates.
-                </p>
+             ) : (
+                <div className="mb-8">
+                   <p className="font-bold mb-1 uppercase text-black">Payment Acknowledgement</p>
+                   <p>This is a computer generated receipt. The payment has been credited to the account of AK Pandey & Associates. Subject to realization of Cheques/Drafts.</p>
+                </div>
              )}
 
              {/* Bottom Signature & QR Area */}
