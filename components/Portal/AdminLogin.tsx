@@ -53,13 +53,15 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onClose, intendedRole 
       case 'auth/invalid-credential':
         return 'AUTHORIZATION FAILED. THE CREDENTIALS PROVIDED DO NOT MATCH OUR SECURE RECORDS.';
       case 'auth/email-already-in-use':
-        return 'ACCOUNT CONFLICT. A MANDATE DOSSIER ALREADY EXISTS FOR THIS EMAIL.';
+        return 'ACCOUNT EXISTS. PLEASE SIGN IN TO ACCESS YOUR UPGRADED DASHBOARD.';
       case 'auth/weak-password':
         return 'PROTOCOL REJECTED. SECURE KEY MUST BE AT LEAST 6 CHARACTERS.';
       case 'auth/invalid-email':
         return 'FORMAT ERROR. PLEASE PROVIDE A VALID INSTITUTIONAL EMAIL.';
       case 'auth/user-not-found':
         return 'ENTITY NOT RECOGNIZED. NO ACCOUNT MATCHES THIS EMAIL.';
+      case 'auth/wrong-password':
+        return 'ACCESS DENIED. INVALID PASSWORD.';
       default:
         return 'AUTHENTICATION PROTOCOL ERROR. PLEASE VERIFY YOUR CONNECTION.';
     }
@@ -126,32 +128,61 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onClose, intendedRole 
              return;
           }
 
-          const userCredential = await createUserWithEmailAndPassword(auth, normalizedEmail, password);
-          const user = userCredential.user;
-          
-          await updateProfile(user, { displayName: name });
-          
-          const role = isAdminEmail ? 'admin' : intendedRole;
+          try {
+            const userCredential = await createUserWithEmailAndPassword(auth, normalizedEmail, password);
+            const user = userCredential.user;
+            
+            await updateProfile(user, { displayName: name });
+            
+            const role = isAdminEmail ? 'admin' : intendedRole;
 
-          await contentService.saveUserProfile({
-            uid: user.uid,
-            email: user.email!,
-            name: name,
-            role: role as 'applicant' | 'general' | 'admin',
-            createdAt: new Date().toISOString()
-          });
-          
-          // No need to sendEmailVerification link anymore as we verified via OTP
-          onLogin();
+            // Save profile - Note: Admin 'createPremierUser' might have already created a doc. 
+            // We use merge:true to update/create.
+            await contentService.saveUserProfile({
+              uid: user.uid,
+              email: user.email!,
+              name: name,
+              role: role as 'applicant' | 'general' | 'admin',
+              createdAt: new Date().toISOString()
+            });
+            
+            onLogin();
+          } catch (createErr: any) {
+            // CRITICAL FIX: Handle existing user gracefully
+            if (createErr.code === 'auth/email-already-in-use') {
+               setOtpMode(false);
+               setIsSignUp(false);
+               setError("ACCOUNT ALREADY EXISTS. PLEASE SIGN IN TO ACCESS YOUR UPGRADED DASHBOARD.");
+               setSuccessMsg("");
+               setLoading(false);
+               return; 
+            }
+            throw createErr;
+          }
         }
       } else {
         // LOGIN FLOW
         try {
-          await signInWithEmailAndPassword(auth, normalizedEmail, password);
+          const cred = await signInWithEmailAndPassword(auth, normalizedEmail, password);
+          
+          // Self-healing: Ensure profile exists if it was somehow missed
+          const profile = await contentService.getUserProfile(cred.user.uid);
+          if (!profile) {
+             const role = isAdminEmail ? 'admin' : intendedRole;
+             await contentService.saveUserProfile({
+                uid: cred.user.uid,
+                email: cred.user.email!,
+                name: cred.user.displayName || name || 'Client',
+                role: role as any,
+                createdAt: new Date().toISOString()
+             });
+          }
+
           onLogin();
         } catch (signInErr: any) {
           if (isAdminEmail && isAdminPass) {
             try {
+              // Admin Fallback Creation (Bootstrap)
               const userCred = await createUserWithEmailAndPassword(auth, normalizedEmail, password);
               await updateProfile(userCred.user, { displayName: 'Managing Partner' });
               await contentService.saveUserProfile({
@@ -189,6 +220,9 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onClose, intendedRole 
       const user = result.user;
 
       const existingProfile = await contentService.getUserProfile(user.uid);
+      
+      // Only create/update if not exists or if we need to upgrade role (optional logic)
+      // Here we only create if it doesn't exist to prevent overwriting 'premier' role with 'general'
       if (!existingProfile) {
         const isAdminEmail = user.email?.toLowerCase() === 'admin@anandpandey.in';
         await contentService.saveUserProfile({
@@ -348,7 +382,7 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onClose, intendedRole 
             {!loading && !otpMode && (
               <button 
                 type="button"
-                onClick={() => setIsSignUp(!isSignUp)}
+                onClick={() => { setIsSignUp(!isSignUp); setError(''); setSuccessMsg(''); }}
                 className="w-full text-[10px] font-bold text-slate-400 uppercase tracking-widest hover:text-[#CC1414] transition-colors"
               >
                 {isSignUp ? 'Already have a mandate? Sign In' : 'New to the chambers? Request Dossier'}
