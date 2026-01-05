@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AK PANDEY & ASSOCIATES | Global Legal Strategy</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary-red: #CC1414;
+      --deep-navy: #0A1931;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      scroll-behavior: smooth;
+    }
+    .font-serif {
+      font-family: 'Playfair Display', serif;
+    }
+
+    /* Cinematic Reveal Animations */
+    @keyframes revealUp {
+      0% { opacity: 0; transform: translateY(40px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes revealLeft {
+      0% { opacity: 0; transform: translateX(40px); }
+      100% { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes clipReveal {
+      0% { clip-path: inset(100% 0 0 0); }
+      100% { clip-path: inset(0 0 0 0); }
+    }
+    @keyframes scaleOut {
+      0% { transform: scale(1.1); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes drawLine {
+      0% { width: 0; }
+      100% { width: 100%; }
+    }
+    @keyframes pageFade {
+      0% { opacity: 0; filter: blur(20px); transform: scale(0.98) translateY(10px); }
+      100% { opacity: 1; filter: blur(0); transform: scale(1) translateY(0); }
+    }
+
+    .animate-reveal-up { animation: revealUp 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    .animate-reveal-left { animation: revealLeft 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    .animate-clip-reveal { animation: clipReveal 1.5s cubic-bezier(0.77, 0, 0.175, 1) forwards; }
+    .animate-scale-out { animation: scaleOut 2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    .animate-page-fade { animation: pageFade 1s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    
+    .stagger-1 { animation-delay: 0.1s; }
+    .stagger-2 { animation-delay: 0.2s; }
+    .stagger-3 { animation-delay: 0.3s; }
+    .stagger-4 { animation-delay: 0.4s; }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #f8fafc; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    .img-zoom-hover img { transition: transform 2.5s cubic-bezier(0.16, 1, 0.3, 1); }
+
+    .nav-link-underline {
+      position: relative;
+    }
+    .nav-link-underline::after {
+      content: '';
+      position: absolute;
+      width: 0;
+      height: 1px;
+      bottom: -2px;
+      left: 0;
+      background-color: var(--primary-red);
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
+    "firebase/": "https://esm.sh/firebase@^12.7.0/",
+    "vite": "https://esm.sh/vite@^7.3.0",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "resend": "https://esm.sh/resend@3.2.0"
+  }
+}
+</script>
+</head>
+<body class="bg-white text-slate-900 overflow-x-hidden">
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>

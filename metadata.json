@@ -1,0 +1,7 @@
+{
+  "name": "Copy of AK Pandey & Associates - Legal Counsel",
+  "description": "A high-end law firm UI replica website for AK Pandey & Associates, inspired by the aesthetic of global law firms like Latham & Watkins. Featuring office locations and appointment booking.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
