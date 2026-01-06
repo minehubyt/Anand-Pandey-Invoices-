@@ -15,7 +15,8 @@ import {
 } from "firebase/firestore";
 import { initializeApp, getApp, getApps, deleteApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth";
-import { db } from "../firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, storage } from "../firebase";
 import { HeroContent, Insight, Author, OfficeLocation, Inquiry, Job, JobApplication, UserProfile, ClientDocument, PaymentRecord } from '../types';
 
 // Re-declare config for secondary app usage
@@ -153,6 +154,25 @@ export const contentService = {
 
     } catch (err) {
       console.error("Content Seeding Error:", err);
+    }
+  },
+
+  // --- STORAGE SERVICE ---
+  uploadImage: async (file: File, folder: string = 'uploads'): Promise<string> => {
+    try {
+      // Create a unique filename
+      const filename = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+      const storageRef = ref(storage, `${folder}/${filename}`);
+      
+      // Upload
+      const snapshot = await uploadBytes(storageRef, file);
+      
+      // Get URL
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      return downloadURL;
+    } catch (error) {
+      console.error("Storage Upload Error:", error);
+      throw new Error("Image upload failed. Please try again.");
     }
   },
 

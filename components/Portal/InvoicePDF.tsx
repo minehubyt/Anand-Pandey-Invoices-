@@ -3,9 +3,8 @@ import React from 'react';
 import { Page, Text, View, Document, StyleSheet, Image } from '@react-pdf/renderer';
 import { InvoiceDetails } from '../../types';
 
-// Using standard PDF fonts ensures text is always selectable/searchable and never rasterized.
-// Helvetica = Sans Serif (matches Inter/Arial)
-// Times-Roman = Serif (matches Playfair Display)
+// Standard PDF fonts: Helvetica (Sans) and Times-Roman (Serif)
+// STRICT COLOR RULE: #000000 for everything except Logo.
 
 const styles = StyleSheet.create({
   page: {
@@ -13,8 +12,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Helvetica',
     fontSize: 10,
     lineHeight: 1.5,
-    color: '#000000',
+    color: '#000000', // Global black
   },
+  // --- Header ---
   headerContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -30,21 +30,21 @@ const styles = StyleSheet.create({
   },
   logoMain: {
     fontSize: 20,
-    fontFamily: 'Times-Bold', // Serif for the Logo text
+    fontFamily: 'Times-Bold', 
     letterSpacing: 2,
-    color: '#A6192E',
+    color: '#A6192E', // ONLY EXCEPTION: Brand Red
     textTransform: 'uppercase',
   },
   logoAmp: {
     fontSize: 14,
     fontFamily: 'Times-Roman',
-    color: '#A6192E',
+    color: '#A6192E', // ONLY EXCEPTION: Brand Red
     marginHorizontal: 5,
   },
   companyDetails: {
     textAlign: 'right',
     fontSize: 9,
-    color: '#475569',
+    color: '#000000', // Black
   },
   companyNameBold: {
     fontFamily: 'Helvetica-Bold',
@@ -54,283 +54,219 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: 2,
   },
-  titleContainer: {
-    borderBottomWidth: 1.5,
-    borderBottomColor: '#000000',
-    paddingBottom: 8,
-    marginBottom: 25,
+
+  // --- Metadata Section ---
+  gridContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-end',
+    marginBottom: 30,
   },
-  title: {
-    fontSize: 14,
+  metaColumn: {
+    flexDirection: 'column',
+    width: '48%',
+  },
+  metaRow: {
+    flexDirection: 'row',
+    marginBottom: 5,
+  },
+  metaLabel: {
+    width: 90,
     fontFamily: 'Helvetica-Bold',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    fontSize: 10,
     color: '#000000',
   },
-  receiptStatus: {
-    fontSize: 9,
-    fontFamily: 'Helvetica-Bold',
-    textTransform: 'uppercase',
-    color: '#15803d',
-    borderWidth: 1,
-    borderColor: '#15803d',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+  metaValue: {
+    flex: 1,
+    fontSize: 10,
+    color: '#000000',
   },
-  statusOriginal: {
-    fontSize: 9,
+  addressLabel: {
     fontFamily: 'Helvetica-Bold',
-    textTransform: 'uppercase',
-    color: '#94A3B8', // slate-400
-    letterSpacing: 1,
+    fontSize: 10,
+    color: '#000000',
+    marginBottom: 2,
+    marginTop: 10,
   },
-  
-  // Payment Details Box
+  addressValue: {
+    fontSize: 10,
+    color: '#000000',
+    textTransform: 'uppercase',
+    marginBottom: 20,
+  },
+
+  // --- Payment Receipt Box ---
   paymentBox: {
-    backgroundColor: '#F8FAFC',
-    padding: 12,
-    marginBottom: 25,
-    borderWidth: 0.5,
-    borderColor: '#E2E8F0',
+    borderWidth: 1,
+    borderColor: '#000000',
+    padding: 10,
+    marginBottom: 20,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-between'
   },
   paymentItem: {
     flexDirection: 'column',
   },
   paymentLabel: {
     fontSize: 8,
-    color: '#64748B',
+    fontFamily: 'Helvetica-Bold',
     textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 4,
-    fontFamily: 'Helvetica-Bold',
-  },
-  paymentValue: {
-    fontSize: 10,
-    fontFamily: 'Helvetica-Bold',
     color: '#000000',
-  },
-
-  detailsGrid: {
-    flexDirection: 'row',
-    marginBottom: 20,
-    gap: 40,
-  },
-  column: {
-    flex: 1,
-  },
-  row: {
-    flexDirection: 'row',
-    marginBottom: 6,
-  },
-  label: {
-    width: 80,
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 10,
-  },
-  value: {
-    flex: 1,
-    fontSize: 10,
-  },
-  
-  addressRow: {
-    marginTop: 10,
-    marginBottom: 25,
-  },
-  addressLabel: {
-    fontFamily: 'Helvetica-Bold',
-    fontSize: 10,
     marginBottom: 2,
   },
-  addressValue: {
+  paymentVal: {
     fontSize: 10,
-    textTransform: 'uppercase',
-    lineHeight: 1.6,
-    marginLeft: 80,
-    marginTop: -16, 
-  },
-  
-  receiptAckText: {
-    fontSize: 10,
-    fontFamily: 'Times-Italic', // Italic Serif for the quote feeling
-    color: '#475569',
-    marginBottom: 25,
-    paddingLeft: 10,
-    borderLeftWidth: 3,
-    borderLeftColor: '#E2E8F0',
-    lineHeight: 1.6,
-  },
-  boldInline: {
-    fontFamily: 'Helvetica-Bold', // Switch back to Sans Bold for emphasis
     color: '#000000',
   },
 
-  // Table
-  table: {
-    width: '100%',
-    marginBottom: 5,
+  // --- Table ---
+  tableContainer: {
+    marginTop: 20,
+    marginBottom: 10,
   },
   tableHeader: {
     flexDirection: 'row',
-    borderTopWidth: 1.5,
-    borderBottomWidth: 1.5,
+    borderTopWidth: 2, // Thick top line
+    borderBottomWidth: 2, // Thick bottom line
     borderTopColor: '#000000',
     borderBottomColor: '#000000',
     paddingVertical: 8,
-    backgroundColor: '#F8FAFC'
+    alignItems: 'center',
   },
   tableRow: {
     flexDirection: 'row',
-    paddingVertical: 12,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#E2E8F0',
+    paddingVertical: 10,
+    borderBottomWidth: 0.5, // Thin separator line
+    borderBottomColor: '#000000',
   },
   colNo: {
     width: '10%',
     fontFamily: 'Helvetica-Bold',
-    paddingLeft: 5,
+    fontSize: 10,
+    color: '#000000',
   },
   colDesc: {
-    width: '70%',
-    fontFamily: 'Helvetica-Bold', // Description is bold in preview
+    width: '65%',
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 10,
+    color: '#000000',
   },
   colAmount: {
-    width: '20%',
+    width: '25%',
     textAlign: 'right',
     fontFamily: 'Helvetica-Bold',
-    paddingRight: 5,
+    fontSize: 10,
+    color: '#000000',
   },
   colAmountVal: {
-    width: '20%',
+    width: '25%',
     textAlign: 'right',
     fontFamily: 'Helvetica-Bold',
-    paddingRight: 5,
+    fontSize: 10,
+    color: '#000000',
   },
-  tableFooterLine: {
-    borderTopWidth: 1.5,
-    borderTopColor: '#000000',
-    marginTop: 0,
-    marginBottom: 20,
-  },
+
+  // --- Total Section ---
   totalSection: {
+    marginTop: 0,
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginBottom: 20,
   },
   totalContainer: {
-    width: '50%',
+    width: '100%',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    borderBottomWidth: 2, // Thick line below total
+    borderBottomColor: '#000000',
+    paddingVertical: 12,
   },
   totalLabel: {
-    fontSize: 12,
+    fontSize: 14,
     fontFamily: 'Helvetica-Bold',
+    color: '#000000',
+    textAlign: 'right',
+    flex: 1,
+    paddingRight: 20,
   },
   totalValue: {
-    fontSize: 12,
+    fontSize: 14,
     fontFamily: 'Helvetica-Bold',
+    color: '#000000',
+    textAlign: 'right',
+    width: '25%', // Matches colAmount width
   },
+
+  // --- Words Section ---
   amountWordsSection: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    paddingBottom: 15,
-    marginBottom: 30,
+    marginTop: 20,
+    marginBottom: 40,
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#000000',
+    paddingBottom: 10,
   },
   amountWords: {
     fontFamily: 'Helvetica-Bold',
     textTransform: 'uppercase',
     fontSize: 10,
+    color: '#000000',
   },
-  termsSection: {
-    fontSize: 8,
-    color: '#334155', 
-    marginBottom: 40,
+
+  // --- Terms ---
+  termsContainer: {
+    marginBottom: 20,
   },
   termsTitle: {
     fontSize: 9,
     fontFamily: 'Helvetica-Bold',
     textTransform: 'uppercase',
     color: '#000000',
-    marginBottom: 5,
+    marginBottom: 8,
   },
   termItem: {
     flexDirection: 'row',
-    marginBottom: 3,
+    marginBottom: 4,
   },
   termBullet: {
     width: 15,
+    fontSize: 9,
+    color: '#000000',
   },
-  footerSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginTop: 'auto',
+  termText: {
+    flex: 1,
+    fontSize: 9,
+    color: '#000000',
   },
-  qrContainer: {
-    alignItems: 'center',
-  },
-  qrImage: {
-    width: 80,
-    height: 80,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    padding: 2,
-    marginBottom: 5,
-  },
-  qrText: {
-    fontSize: 7,
-    fontFamily: 'Helvetica-Bold',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    color: '#94A3B8',
-  },
+
+  // --- Signature ---
   signatureContainer: {
+    marginTop: 40,
+    alignSelf: 'flex-end',
     textAlign: 'right',
   },
   signText: {
-    fontSize: 9,
     fontFamily: 'Times-Italic',
-    color: '#64748B',
+    fontSize: 9,
+    color: '#000000',
     marginBottom: 30,
   },
-  signCompany: {
-    fontSize: 9,
+  signAuth: {
     fontFamily: 'Helvetica-Bold',
+    fontSize: 10,
     textTransform: 'uppercase',
     color: '#000000',
-  },
-  signAuth: {
-    fontSize: 9,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  pageFooter: {
-    position: 'absolute',
-    bottom: 20,
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    fontSize: 8,
-    color: '#94A3B8',
   }
 });
 
 interface InvoicePDFProps {
   data: InvoiceDetails;
+  type?: 'invoice' | 'receipt';
 }
 
-export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data }) => {
-  const isReceipt = !!data.payment;
+export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data, type = 'invoice' }) => {
+  // STRICTLY use the 'type' prop to decide layout. 
+  // This allows printing an original invoice even if payment is already recorded.
+  const isReceipt = type === 'receipt';
   
-  // Payload for QR Code
-  const securePayload = btoa(`AKP_${isReceipt ? 'RECEIPT' : 'INVOICE'}_V1::${data.invoiceNo}::${data.totalAmount}::${data.clientName}`);
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${securePayload}&bgcolor=ffffff`;
-
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -354,141 +290,123 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data }) => {
         </View>
 
         {/* Title */}
-        <View style={styles.titleContainer}>
-          <Text style={styles.title}>{isReceipt ? 'PAYMENT RECEIPT' : 'PROFESSIONAL FEE INVOICE'}</Text>
-          {isReceipt ? (
-             <Text style={styles.receiptStatus}>CLEARED</Text>
-          ) : (
-             <Text style={styles.statusOriginal}>Original For Recipient</Text>
-          )}
+        <View style={{ marginBottom: 20, borderBottomWidth: 1, borderBottomColor: '#000000', paddingBottom: 5 }}>
+           <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 14, textTransform: 'uppercase' }}>
+              {isReceipt ? 'PAYMENT RECEIPT' : 'PROFESSIONAL FEE INVOICE'}
+           </Text>
         </View>
 
-        {/* Receipt Specific Payment Box */}
+        {/* Receipt Details Box */}
         {isReceipt && data.payment && (
            <View style={styles.paymentBox}>
               <View style={styles.paymentItem}>
                  <Text style={styles.paymentLabel}>Receipt No</Text>
-                 <Text style={styles.paymentValue}>RCP-{data.invoiceNo}</Text>
+                 <Text style={styles.paymentVal}>RCP-{data.invoiceNo}</Text>
               </View>
               <View style={styles.paymentItem}>
-                 <Text style={styles.paymentLabel}>Date Paid</Text>
-                 <Text style={styles.paymentValue}>{new Date(data.payment.date).toLocaleDateString()}</Text>
+                 <Text style={styles.paymentLabel}>Date</Text>
+                 <Text style={styles.paymentVal}>{new Date(data.payment.date).toLocaleDateString()}</Text>
               </View>
               <View style={styles.paymentItem}>
                  <Text style={styles.paymentLabel}>Mode</Text>
-                 <Text style={styles.paymentValue}>{data.payment.mode}</Text>
+                 <Text style={styles.paymentVal}>{data.payment.mode}</Text>
               </View>
               <View style={styles.paymentItem}>
                  <Text style={styles.paymentLabel}>Ref No</Text>
-                 <Text style={styles.paymentValue}>{data.payment.transactionReference || 'N/A'}</Text>
+                 <Text style={styles.paymentVal}>{data.payment.transactionReference}</Text>
               </View>
            </View>
         )}
 
-        {/* Details Grid (Compact Metadata) */}
-        <View style={styles.detailsGrid}>
-          <View style={styles.column}>
-            <View style={styles.row}>
-              <Text style={styles.label}>Invoice No.</Text>
-              <Text style={styles.value}>:  {data.invoiceNo}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Invoice Date</Text>
-              <Text style={styles.value}>:  {new Date(data.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}</Text>
-            </View>
-          </View>
-          <View style={styles.column}>
-            <View style={styles.row}>
-              <Text style={styles.label}>Client Name</Text>
-              <Text style={styles.value}>:  {data.clientName}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Kind Attn.</Text>
-              <Text style={styles.value}>:  {data.kindAttn}</Text>
-            </View>
-          </View>
+        {/* Info Grid */}
+        <View style={styles.gridContainer}>
+           <View style={styles.metaColumn}>
+              <View style={styles.metaRow}>
+                 <Text style={styles.metaLabel}>Invoice No.</Text>
+                 <Text style={styles.metaValue}>:  {data.invoiceNo}</Text>
+              </View>
+              <View style={styles.metaRow}>
+                 <Text style={styles.metaLabel}>Client Name</Text>
+                 <Text style={styles.metaValue}>:  {data.clientName}</Text>
+              </View>
+              <Text style={styles.addressLabel}>Billing Address:</Text>
+              <Text style={styles.addressValue}>{data.clientAddress}</Text>
+           </View>
+
+           <View style={styles.metaColumn}>
+              <View style={styles.metaRow}>
+                 <Text style={styles.metaLabel}>Invoice Date</Text>
+                 <Text style={styles.metaValue}>:  {new Date(data.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}</Text>
+              </View>
+              <View style={styles.metaRow}>
+                 <Text style={styles.metaLabel}>Kind Attn.</Text>
+                 <Text style={styles.metaValue}>:  {data.kindAttn}</Text>
+              </View>
+           </View>
         </View>
 
-        {/* Address Row */}
-        <View style={styles.addressRow}>
-           <Text style={styles.addressLabel}>Billing Address:</Text>
-           <Text style={styles.addressValue}>{data.clientAddress}</Text>
-        </View>
-
+        {/* Receipt Acknowledgement Text */}
         {isReceipt && (
-           <Text style={styles.receiptAckText}>
-              Received with thanks from <Text style={styles.boldInline}>{data.clientName}</Text> a sum of <Text style={styles.boldInline}>INR {data.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</Text> towards the full and final settlement of Invoice No. {data.invoiceNo}.
+           <Text style={{ fontFamily: 'Times-Italic', fontSize: 10, marginBottom: 20 }}>
+              Received with thanks from {data.clientName} a sum of INR {data.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })} towards full and final settlement.
            </Text>
         )}
 
-        {/* Table */}
-        <View style={styles.table}>
-          <View style={styles.tableHeader}>
-            <Text style={styles.colNo}>S.No.</Text>
-            <Text style={styles.colDesc}>Particulars</Text>
-            <Text style={styles.colAmount}>Amount (INR)</Text>
-          </View>
-          {data.items.map((item, idx) => (
-            <View key={idx} style={styles.tableRow}>
-              <Text style={styles.colNo}>{idx + 1}.</Text>
-              <Text style={styles.colDesc}>{item.description}</Text>
-              <Text style={styles.colAmountVal}>{item.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</Text>
-            </View>
-          ))}
+        {/* Main Table */}
+        <View style={styles.tableContainer}>
+           <View style={styles.tableHeader}>
+              <Text style={styles.colNo}>S.No.</Text>
+              <Text style={styles.colDesc}>Particulars</Text>
+              <Text style={styles.colAmount}>Amount (INR)</Text>
+           </View>
+           
+           {data.items.map((item, idx) => (
+              <View key={idx} style={styles.tableRow}>
+                 <Text style={styles.colNo}>{idx + 1}.</Text>
+                 <Text style={styles.colDesc}>{item.description}</Text>
+                 <Text style={styles.colAmountVal}>{item.amount.toFixed(0)}</Text>
+              </View>
+           ))}
         </View>
-        <View style={styles.tableFooterLine} />
 
-        {/* Total */}
+        {/* Total Section with Lines */}
         <View style={styles.totalSection}>
-          <View style={styles.totalContainer}>
-            <Text style={styles.totalLabel}>{isReceipt ? 'Amount Received' : 'Gross Amount'}</Text>
-            <Text style={styles.totalValue}>{data.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</Text>
-          </View>
+           <View style={styles.totalContainer}>
+              <Text style={styles.totalLabel}>{isReceipt ? 'Amount Received' : 'Gross Amount'}</Text>
+              <Text style={styles.totalValue}>{data.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</Text>
+           </View>
         </View>
 
-        {/* Amount Words */}
+        {/* Amount in Words */}
         <View style={styles.amountWordsSection}>
-          <Text style={styles.amountWords}>RUPEES {data.amountInWords}</Text>
+           <Text style={styles.amountWords}>RUPEES {data.amountInWords}</Text>
         </View>
 
         {/* Terms */}
-        <View style={styles.termsSection}>
-          {isReceipt ? (
-             <View>
-                <Text style={styles.termsTitle}>Payment Acknowledgement</Text>
-                <Text>This is a computer generated receipt. The payment has been credited to the account of AK Pandey & Associates. Subject to realization of Cheques/Drafts.</Text>
-             </View>
-          ) : (
-             <View>
-                <Text style={styles.termsTitle}>Terms and Conditions</Text>
-                {data.terms.map((term, i) => (
-                  <View key={i} style={styles.termItem}>
+        <View style={styles.termsContainer}>
+           <Text style={styles.termsTitle}>{isReceipt ? 'PAYMENT ACKNOWLEDGEMENT' : 'TERMS AND CONDITIONS'}</Text>
+           {isReceipt ? (
+              <Text style={{ fontSize: 9 }}>
+                 This receipt is computer generated and valid without signature. The payment has been credited to AK Pandey & Associates.
+              </Text>
+           ) : (
+              data.terms.map((term, i) => (
+                 <View key={i} style={styles.termItem}>
                     <Text style={styles.termBullet}>{String.fromCharCode(97 + i)})</Text>
-                    <Text style={{ flex: 1 }}>{term}</Text>
-                  </View>
-                ))}
-             </View>
-          )}
+                    <Text style={styles.termText}>{term}</Text>
+                 </View>
+              ))
+           )}
         </View>
 
-        {/* Footer Signatures */}
-        <View style={styles.footerSection}>
-          <View style={styles.qrContainer}>
-             {/* Note: React-PDF Image component requires a valid URL. If QR generation fails, it handles gracefully */}
-             <Image src={qrUrl} style={styles.qrImage} />
-             <Text style={styles.qrText}>Secure Verification ID</Text>
-          </View>
-          <View style={styles.signatureContainer}>
-             <Text style={styles.signText}>This document is digitally signed</Text>
-             <Text style={styles.signCompany}>For AK Pandey & Associates</Text>
-             <Text style={styles.signAuth}>Authorized Signatory</Text>
-          </View>
-        </View>
-
-        {/* Fixed Footer */}
-        <Text style={styles.pageFooter}>
-           Computer Generated {isReceipt ? 'Receipt' : 'Invoice'} • {data.invoiceNo} • Page 1 of 1
-        </Text>
+        {/* Signature - ONLY FOR INVOICES */}
+        {!isReceipt && (
+           <View style={styles.signatureContainer}>
+              <Text style={styles.signText}>This document is digitally signed</Text>
+              <Text style={styles.signAuth}>FOR AK PANDEY & ASSOCIATES</Text>
+              <Text style={{ fontSize: 9, color: '#64748B', marginTop: 2 }}>Authorized Signatory</Text>
+           </View>
+        )}
 
       </Page>
     </Document>

@@ -27,10 +27,9 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
     setIsGenerating(true);
     try {
       // Generate the Blob using React-PDF
-      // This ensures a true, vector-based PDF file, not a browser screenshot/printout
-      const blob = await pdf(<InvoicePDF data={data} />).toBlob();
+      // Explicitly pass the 'type' (mode) so the PDF knows whether to be an Invoice or Receipt
+      const blob = await pdf(<InvoicePDF data={data} type={mode} />).toBlob();
       
-      // Create a temporary link to download the blob
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -57,7 +56,7 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
             onClick={handleDownloadPDF} 
             disabled={isGenerating}
             className="p-3 bg-white text-slate-900 hover:bg-[#CC1414] hover:text-white rounded-full transition-colors shadow-lg flex items-center justify-center" 
-            title="Download PDF"
+            title={`Download ${mode === 'receipt' ? 'Receipt' : 'Invoice'}`}
           >
              {isGenerating ? <Loader2 size={20} className="animate-spin" /> : <Download size={20}/>}
           </button>
@@ -235,11 +234,13 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
                    <span className="text-[8px] font-bold uppercase tracking-widest text-slate-400">Secure Verification ID</span>
                 </div>
 
-                <div className="text-right">
-                   <p className="mb-12 text-slate-500 italic font-serif">This document is digitally signed</p>
-                   <p className="font-bold text-black uppercase">For AK Pandey & Associates</p>
-                   <p className="text-slate-500 mt-1">Authorized Signatory</p>
-                </div>
+                {mode === 'invoice' && (
+                   <div className="text-right">
+                      <p className="mb-12 text-slate-500 italic font-serif">This document is digitally signed</p>
+                      <p className="font-bold text-black uppercase">For AK Pandey & Associates</p>
+                      <p className="text-slate-500 mt-1">Authorized Signatory</p>
+                   </div>
+                )}
              </div>
           </div>
 

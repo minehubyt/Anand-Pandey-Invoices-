@@ -55,6 +55,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
   const [docAmount, setDocAmount] = useState('');
   const [invitingClient, setInvitingClient] = useState(false);
   const [creatingGlobalInvoice, setCreatingGlobalInvoice] = useState(false);
+  const [sendingMailId, setSendingMailId] = useState<string | null>(null);
   
   // Invoice Viewer State (Supports Invoice View & Receipt View)
   const [viewInvoice, setViewInvoice] = useState<{data: InvoiceDetails, mode: 'invoice' | 'receipt'} | null>(null);
@@ -272,8 +273,8 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
 
      // 2. Generate PDF and Send Email Notification
      try {
-        // Generate PDF Blob
-        const blob = await pdf(<InvoicePDF data={finalInvoice} />).toBlob();
+        // Generate PDF Blob - Force Type 'invoice'
+        const blob = await pdf(<InvoicePDF data={finalInvoice} type="invoice" />).toBlob();
         
         // Convert Blob to Base64
         const reader = new FileReader();
@@ -290,6 +291,36 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
      setIsSaving(false);
      setUploadDocType('document');
      setCreatingGlobalInvoice(false);
+  };
+
+  const handleSendInvoiceEmail = async (inv: ClientDocument) => {
+      if(!inv.invoiceDetails || !inv.userId) return;
+      setSendingMailId(inv.id);
+      
+      const targetClient = premierClients.find(c => c.uid === inv.userId);
+      if(!targetClient) {
+          alert("Client information not found.");
+          setSendingMailId(null);
+          return;
+      }
+
+      try {
+          // Regenerate PDF Blob - Force Type 'invoice' to ensure clean document
+          const blob = await pdf(<InvoicePDF data={inv.invoiceDetails} type="invoice" />).toBlob();
+          
+          const reader = new FileReader();
+          reader.readAsDataURL(blob);
+          reader.onloadend = async () => {
+              const base64data = reader.result?.toString().split(',')[1];
+              await emailService.sendInvoiceNotification(targetClient, inv.invoiceDetails, base64data);
+              setSendingMailId(null);
+              alert("Invoice sent to client email.");
+          };
+      } catch(e) {
+          console.error("Email send failed", e);
+          setSendingMailId(null);
+          alert("Failed to send email.");
+      }
   };
 
   const initiatePaymentRecord = (doc: ClientDocument) => {
@@ -321,9 +352,8 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
           };
 
           try {
-              // 3. Generate Receipt PDF
-              // InvoicePDF automatically switches to Receipt Mode if `payment` exists
-              const blob = await pdf(<InvoicePDF data={updatedInvoiceDetails} />).toBlob();
+              // 3. Generate Receipt PDF - Force Type 'receipt'
+              const blob = await pdf(<InvoicePDF data={updatedInvoiceDetails} type="receipt" />).toBlob();
               
               // 4. Convert to Base64 & Send Email
               const reader = new FileReader();
@@ -529,6 +559,15 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
                          </span>
                       </td>
                       <td className="p-6 text-right flex justify-end gap-2">
+                         {/* Send Email Button */}
+                         <button 
+                            onClick={() => handleSendInvoiceEmail(inv)}
+                            className="p-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-200 text-[10px] font-bold uppercase flex items-center gap-1"
+                            title="Send Email"
+                         >
+                            {sendingMailId === inv.id ? <Loader2 size={14} className="animate-spin"/> : <Mail size={14}/>}
+                         </button>
+
                          {inv.status !== 'Paid' && (
                              <button onClick={() => initiatePaymentRecord(inv)} className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 text-[10px] font-bold uppercase flex items-center gap-1">
                                  <Banknote size={14}/> Record Pay
@@ -553,7 +592,8 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
     </div>
   );
 
-  // ... (keeping other render functions like renderApplicationsTable, renderInquiriesTable unchanged) ...
+  // ... (Rest of component remains unchanged)
+  // [Render logic for Applications Table and Inquiries Table is unchanged]
   const renderApplicationsTable = () => (
     <div className="bg-white border border-slate-100 rounded-3xl overflow-hidden shadow-sm">
        <table className="w-full text-left border-collapse">
@@ -711,7 +751,6 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
         )}
 
         {/* ... (Existing Client Invitation Form & Entity Editor - Unchanged) ... */}
-        {/* --- CLIENT INVITATION FORM --- */}
         {invitingClient && (
            <div className={`p-12 rounded-3xl border shadow-2xl relative mb-12 animate-fade-in ${isDarkMode ? 'bg-[#111216] border-white/5' : 'bg-white border-slate-100'}`}>
                <div className="flex justify-between items-center mb-12">
@@ -1101,30 +1140,49 @@ const InputField = ({ label, value, onChange, isDark, icon, type = "text", place
   </div>
 );
 
-const FileUploader = ({ label, value, onChange, icon }: any) => (
-  <div className="space-y-4">
-    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{label}</label>
-    <div className="flex items-center gap-4">
-       <div className="flex-1 p-4 bg-slate-100 rounded-xl text-slate-400 text-xs overflow-hidden truncate">
-          {value ? 'File Selected (Ready to Upload)' : 'No file chosen.'}
-       </div>
-       <label className="px-6 py-4 bg-slate-900 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest cursor-pointer hover:bg-[#CC1414] transition-all flex items-center gap-2">
-          {icon} Choose
-          <input 
-            type="file" 
-            className="hidden" 
-            onChange={async (e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                const reader = new FileReader();
-                reader.onloadend = () => onChange(reader.result);
-                reader.readAsDataURL(file);
-              }
-            }}
-          />
-       </label>
+const FileUploader = ({ label, value, onChange, icon }: any) => {
+  const [uploading, setUploading] = useState(false);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setUploading(true);
+      try {
+        // Use the new uploadImage service for unlimited size cloud storage
+        const url = await contentService.uploadImage(file, 'banners');
+        onChange(url);
+      } catch (error) {
+        alert("Failed to upload image. Please try again.");
+        console.error(error);
+      } finally {
+        setUploading(false);
+      }
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{label}</label>
+      <div className="flex items-center gap-4">
+         <div className="flex-1 p-4 bg-slate-100 rounded-xl text-slate-400 text-xs overflow-hidden truncate flex items-center justify-between">
+            <span>{value ? 'Image Uploaded' : 'No file chosen'}</span>
+            {value && <img src={value} alt="Preview" className="h-8 w-8 object-cover rounded ml-2" />}
+         </div>
+         <label className={`px-6 py-4 bg-slate-900 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest cursor-pointer hover:bg-[#CC1414] transition-all flex items-center gap-2 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+            {uploading ? <Loader2 className="animate-spin" size={16}/> : icon} 
+            {uploading ? 'Uploading...' : 'Choose High-Res'}
+            <input 
+              type="file" 
+              className="hidden" 
+              disabled={uploading}
+              accept="image/*"
+              onChange={handleFileChange}
+            />
+         </label>
+      </div>
+      {value && <p className="text-[9px] text-green-600 font-bold uppercase tracking-widest">High-Definition Asset Ready</p>}
     </div>
-  </div>
-);
+  );
+};
 
 export default AdminPortal;
