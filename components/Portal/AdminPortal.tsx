@@ -10,7 +10,7 @@ import {
   Sun, Moon, ChevronRight, Download, Link, ExternalLink,
   Heading1, Heading2, AlignLeft, Type, FileUp, Music, Database,
   Linkedin, MessageCircle, Mail, BookOpen, Star, Palette, List, Maximize2, Monitor,
-  UserCheck, GraduationCap, Eye, Loader2, AlertTriangle, Crown, FilePlus, Receipt, CreditCard, Banknote, DollarSign, TrendingUp, AlertCircle, PenTool, Usb, Lock, KeyRound, HardDrive
+  UserCheck, GraduationCap, Eye, Loader2, AlertTriangle, Crown, FilePlus, Receipt, CreditCard, Banknote, DollarSign, TrendingUp, AlertCircle, PenTool, Usb, Lock, KeyRound, HardDrive, AlertOctagon
 } from 'lucide-react';
 import { pdf } from '@react-pdf/renderer';
 import { contentService } from '../../services/contentService';
@@ -187,23 +187,47 @@ const DSCSigningModal: React.FC<{
   const [selectedToken, setSelectedToken] = useState('HYP2003');
   const [selectedCert, setSelectedCert] = useState<string | null>(null);
   const [pin, setPin] = useState('');
+  const [showExpired, setShowExpired] = useState(false);
+  const [scanProgress, setScanProgress] = useState(0);
   
-  // Simulated Certificates
-  const certs = [
-    { id: 'c1', name: 'ANAND KUMAR PANDEY', issuer: 'eMudhra Sub CA for Class 3 Individual 2014', validTo: '2026-05-20', serial: '12948102' },
-    { id: 'c2', name: 'AK PANDEY & ASSOCIATES', issuer: 'Vsign CA 2014', validTo: '2025-11-15', serial: '88491022' }
+  // REALISTIC COMPREHENSIVE CERTIFICATE LIST
+  const allCerts = [
+    // 1. Newest Active - Capricorn
+    { id: 'c_cap_2024', name: 'ANAND KUMAR PANDEY', issuer: 'Capricorn CA 2014', validFrom: '2024-01-10', validTo: '2026-01-10', serial: '792019384201', status: 'Active', type: 'Class 3 Individual', thumbprint: '8291A...' },
+    // 2. Existing Active - Vsign
+    { id: 'c_vsign_2023', name: 'AK PANDEY & ASSOCIATES', issuer: 'Vsign CA 2014', validFrom: '2023-05-20', validTo: '2025-05-20', serial: '88491022', status: 'Active', type: 'Class 3 Organization', thumbprint: '1928B...' },
+    // 3. Existing Active - eMudhra
+    { id: 'c_emudhra_2022', name: 'ANAND KUMAR PANDEY', issuer: 'eMudhra Sub CA for Class 3 Individual 2014', validFrom: '2022-11-15', validTo: '2024-11-15', serial: '12948102', status: 'Active', type: 'Class 3 Individual', thumbprint: '3810C...' },
+    
+    // 4. Recently Expired - nCode
+    { id: 'c_ncode_2020', name: 'ANAND KUMAR PANDEY', issuer: 'nCode Solutions CA 2014', validFrom: '2020-03-01', validTo: '2022-03-01', serial: '33910294', status: 'Expired', type: 'Class 2 Individual', thumbprint: '9921D...' },
+    // 5. Older - Sify
+    { id: 'c_sify_2019', name: 'AK PANDEY (HUF)', issuer: 'Sify CA 2014', validFrom: '2019-06-10', validTo: '2021-06-10', serial: '55920199', status: 'Expired', type: 'Class 2 Organization', thumbprint: '1102E...' },
+    // 6. Oldest - eMudhra
+    { id: 'c_emudhra_2018', name: 'ANAND KUMAR PANDEY', issuer: 'eMudhra Class 2 Individual', validFrom: '2018-01-01', validTo: '2020-01-01', serial: '11029384', status: 'Expired', type: 'Class 2 Individual', thumbprint: '4491F...' }
   ];
+
+  const visibleCerts = showExpired ? allCerts : allCerts.filter(c => c.status === 'Active');
 
   const handleDriverSelect = () => {
       setStep('detect');
-      setTimeout(() => setStep('select'), 2000); // Simulate Detection
+      // Simulate Real Scanning Progress
+      let progress = 0;
+      const interval = setInterval(() => {
+          progress += 10;
+          setScanProgress(progress);
+          if (progress >= 100) {
+              clearInterval(interval);
+              setStep('select');
+          }
+      }, 300); // 3 seconds total scan time
   };
 
   useEffect(() => {
     if (step === 'signing') {
       const timer = setTimeout(() => {
-        const cert = certs.find(c => c.id === selectedCert);
-        onSign(cert);
+        const cert = allCerts.find(c => c.id === selectedCert);
+        onSign({ ...cert, location: 'Ranchi' }); // FORCE RANCHI LOCATION
       }, 3000);
       return () => clearTimeout(timer);
     }
@@ -223,7 +247,7 @@ const DSCSigningModal: React.FC<{
         </div>
 
         {/* Content Area */}
-        <div className="p-6 bg-white min-h-[300px] flex flex-col">
+        <div className="p-6 bg-white min-h-[350px] flex flex-col">
           
           {/* STEP 1: DRIVER SELECTION */}
           {step === 'driver' && (
@@ -241,7 +265,7 @@ const DSCSigningModal: React.FC<{
                      onChange={(e) => setSelectedToken(e.target.value)}
                      className="w-full p-2 border border-slate-300 rounded bg-slate-50 text-sm focus:border-blue-500 outline-none"
                    >
-                      <option value="HYP2003">HYP2003 (ePass2003)</option>
+                      <option value="HYP2003">HYP2003 (ePass2003 Auto)</option>
                       <option value="PROXKEY">Watchdata ProxKey</option>
                       <option value="TRUSTKEY">TrustKey Token</option>
                       <option value="MOSERBAER">MoserBaer (Old)</option>
@@ -254,48 +278,74 @@ const DSCSigningModal: React.FC<{
              </div>
           )}
 
-          {/* STEP 2: DETECTING */}
+          {/* STEP 2: DETECTING / SCANNING */}
           {step === 'detect' && (
             <div className="flex-1 flex flex-col justify-center items-center">
                <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
-               <h4 className="text-sm font-bold text-slate-800">Reading Token...</h4>
-               <p className="text-xs text-slate-500 mt-2 font-mono">Loading certificates from {selectedToken}...</p>
+               <h4 className="text-sm font-bold text-slate-800">Reading Token Sectors...</h4>
+               <p className="text-xs text-slate-500 mt-2 font-mono">Scanning {selectedToken} container...</p>
+               
+               {/* Realistic Progress Bar */}
+               <div className="w-64 h-2 bg-slate-100 rounded-full mt-4 overflow-hidden border border-slate-200">
+                  <div 
+                    className="h-full bg-blue-600 transition-all duration-300 ease-linear" 
+                    style={{ width: `${scanProgress}%` }}
+                  />
+               </div>
+               <p className="text-[10px] text-slate-400 mt-2 font-mono">{scanProgress}% Complete</p>
             </div>
           )}
 
           {/* STEP 3: CERTIFICATE SELECTION */}
           {step === 'select' && (
             <div className="space-y-4">
-               <div className="bg-yellow-50 border border-yellow-200 p-3 flex gap-2 items-center rounded-sm">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span className="text-xs font-bold text-slate-700">Token Active: {selectedToken}</span>
+               <div className="bg-yellow-50 border border-yellow-200 p-3 flex gap-2 items-center rounded-sm justify-between">
+                  <div className="flex gap-2 items-center">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    <span className="text-xs font-bold text-slate-700">{allCerts.length} Certificates Retrieved</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-slate-500">{selectedToken}</span>
                </div>
                
-               <p className="text-sm font-bold text-slate-800">Select Certificate to Sign:</p>
+               <div className="flex justify-between items-end">
+                  <p className="text-sm font-bold text-slate-800">Select Certificate to Sign:</p>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                     <input type="checkbox" checked={showExpired} onChange={e => setShowExpired(e.target.checked)} className="accent-blue-600 w-3 h-3" />
+                     <span className="text-[10px] font-bold text-slate-500 uppercase">Show Expired</span>
+                  </label>
+               </div>
                
-               <div className="border border-slate-300 h-40 overflow-y-auto bg-slate-50 rounded-sm">
-                  {certs.map(cert => (
+               <div className="border border-slate-300 h-48 overflow-y-auto bg-slate-50 rounded-sm custom-scrollbar">
+                  {visibleCerts.map(cert => (
                     <div 
                       key={cert.id}
                       onClick={() => setSelectedCert(cert.id)}
-                      className={`p-3 border-b border-slate-200 cursor-pointer hover:bg-blue-50 flex gap-3 ${selectedCert === cert.id ? 'bg-blue-100' : ''}`}
+                      className={`p-3 border-b border-slate-200 cursor-pointer hover:bg-blue-50 flex gap-3 ${selectedCert === cert.id ? 'bg-blue-100 border-l-4 border-l-blue-600' : ''} ${cert.status === 'Expired' ? 'opacity-60 bg-slate-100' : ''}`}
                     >
-                       <ShieldCheck size={16} className="text-green-600 mt-1" />
-                       <div>
-                          <p className="text-sm font-bold text-slate-800">{cert.name}</p>
-                          <p className="text-[10px] text-slate-500">Issuer: {cert.issuer}</p>
-                          <p className="text-[10px] text-slate-500">Exp: {cert.validTo} • Serial: {cert.serial}</p>
+                       {cert.status === 'Expired' ? <AlertOctagon size={16} className="text-red-400 mt-1"/> : <ShieldCheck size={16} className={selectedCert === cert.id ? 'text-blue-600 mt-1' : 'text-slate-400 mt-1'} />}
+                       
+                       <div className="flex-1">
+                          <div className="flex justify-between items-start">
+                             <p className={`text-sm font-bold ${cert.status === 'Expired' ? 'text-slate-500' : 'text-slate-800'}`}>{cert.name}</p>
+                             {new Date(cert.validTo).getFullYear() >= 2026 && <span className="text-[9px] bg-green-100 text-green-700 px-1 rounded border border-green-200">NEW</span>}
+                             {cert.status === 'Expired' && <span className="text-[9px] bg-red-100 text-red-600 px-1 rounded border border-red-200">EXP</span>}
+                          </div>
+                          <p className="text-[10px] text-slate-500 font-mono mt-0.5 truncate">Iss: {cert.issuer}</p>
+                          <div className="flex justify-between mt-1">
+                             <p className="text-[10px] text-slate-600">Exp: {cert.validTo}</p>
+                             <p className="text-[10px] text-slate-400 font-mono">SN: {cert.serial}</p>
+                          </div>
                        </div>
                     </div>
                   ))}
                </div>
 
                <div className="flex justify-end gap-2 pt-2">
-                  <button onClick={() => setStep('driver')} className="px-4 py-2 border border-slate-300 text-xs font-bold text-slate-600 rounded hover:bg-slate-100">Back</button>
+                  <button onClick={() => setStep('driver')} className="px-4 py-2 border border-slate-300 text-xs font-bold text-slate-600 rounded hover:bg-slate-100">Rescan</button>
                   <button 
                     disabled={!selectedCert}
                     onClick={() => setStep('pin')}
-                    className="px-6 py-2 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700 disabled:opacity-50"
+                    className="px-6 py-2 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700 disabled:opacity-50 shadow-sm"
                   >
                     Sign Document
                   </button>
@@ -341,6 +391,7 @@ const DSCSigningModal: React.FC<{
                 </div>
                 <h4 className="text-sm font-bold text-slate-800">Hashing Document...</h4>
                 <p className="text-xs text-slate-500 mt-1 font-mono">Embedding SHA-256 Signature Block...</p>
+                <p className="text-[10px] text-green-600 mt-2 font-bold uppercase">Location Tag: Ranchi, JH</p>
              </div>
           )}
 
