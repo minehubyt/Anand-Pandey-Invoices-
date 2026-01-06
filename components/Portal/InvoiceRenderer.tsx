@@ -100,7 +100,7 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
           </div>
 
           {/* Title & Status */}
-          <div className="border-b-2 border-black pb-2 mb-8 flex justify-between items-end">
+          <div className="border-b border-black pb-2 mb-8 flex justify-between items-end">
              <h1 className="text-lg font-bold text-black uppercase tracking-tight">
                 {mode === 'receipt' ? 'PAYMENT RECEIPT' : 'PROFESSIONAL FEE INVOICE'}
              </h1>
@@ -175,7 +175,7 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
           <div className="mb-2">
              <table className="w-full text-[12px]">
                 <thead>
-                   <tr className="text-left border-t-2 border-b-2 border-black bg-slate-50">
+                   <tr className="text-left border-t border-b border-black bg-slate-50">
                       <th className="py-2 pl-2 font-bold w-16 text-black">S.No.</th>
                       <th className="py-2 font-bold text-black">Particulars</th>
                       <th className="py-2 pr-2 font-bold text-right text-black">Amount (INR)</th>
@@ -195,7 +195,7 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
                    ))}
                 </tbody>
              </table>
-             <div className="border-t-2 border-black w-full"></div>
+             <div className="border-t border-black w-full"></div>
           </div>
 
           {/* Total Section */}

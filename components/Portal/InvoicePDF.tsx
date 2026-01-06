@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
 
   // --- Payment Receipt Box ---
   paymentBox: {
-    borderWidth: 1,
+    borderWidth: 0.5, // Thinner
     borderColor: '#000000',
     padding: 8,
     marginBottom: 15,
@@ -128,8 +128,8 @@ const styles = StyleSheet.create({
   },
   tableHeader: {
     flexDirection: 'row',
-    borderTopWidth: 1.5, // Strong Black Line
-    borderBottomWidth: 1.5, // Strong Black Line
+    borderTopWidth: 0.7, // Thinner lines
+    borderBottomWidth: 0.7, // Thinner lines
     borderTopColor: '#000000',
     borderBottomColor: '#000000',
     paddingVertical: 6,
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderBottomWidth: 2, // Double Line Effect (Simulated with thick border)
+    borderBottomWidth: 1, // Single line instead of double thickness
     borderBottomColor: '#000000',
     paddingVertical: 10,
   },
@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
   amountWordsSection: {
     marginTop: 15,
     marginBottom: 20, 
-    borderBottomWidth: 1,
+    borderBottomWidth: 0.7, // Thinner
     borderBottomColor: '#000000',
     paddingBottom: 8,
   },
@@ -221,8 +221,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginTop: 10,
-    marginBottom: 20,
-    minHeight: 120, // Ensure space reserved
+    marginBottom: 10, // Reduced bottom margin slightly to keep tighter
+    minHeight: 100, // Ensure space reserved
   },
   termsColumn: {
     width: '55%',
@@ -262,10 +262,10 @@ const styles = StyleSheet.create({
 
   // --- QR Specifics ---
   qrImage: {
-    width: 130, // Large QR
-    height: 130,
+    width: 110, // Slightly smaller to fit better if needed
+    height: 110,
     marginBottom: 4,
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderColor: '#E2E8F0',
   },
   qrLabel: {
@@ -284,14 +284,15 @@ const styles = StyleSheet.create({
 
   // --- Signature ---
   footerSection: {
-    marginTop: 10, // Reduced spacing
+    marginTop: 20, // Increased top margin to push below terms
     flexDirection: 'row',
     justifyContent: 'flex-end', 
     alignItems: 'flex-end',
   },
   signatureContainer: {
     textAlign: 'right',
-    marginTop: 10
+    marginTop: 10,
+    minWidth: 200, // Ensure width for alignment
   },
   signText: {
     fontFamily: 'Helvetica-Oblique', // Italic Sans
@@ -345,7 +346,7 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data, type = 'invoice' }
         </View>
 
         {/* Title Block */}
-        <View style={{ marginBottom: 15, borderBottomWidth: 1, borderBottomColor: '#000000', paddingBottom: 4 }}>
+        <View style={{ marginBottom: 15, borderBottomWidth: 0.7, borderBottomColor: '#000000', paddingBottom: 4 }}>
            <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 12, textTransform: 'uppercase', color: '#000000' }}>
               {isReceipt ? 'PAYMENT RECEIPT' : 'PROFESSIONAL FEE INVOICE'}
            </Text>
