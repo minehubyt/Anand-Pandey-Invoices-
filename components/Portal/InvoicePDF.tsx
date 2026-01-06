@@ -1,17 +1,11 @@
 
 import React from 'react';
-import { Page, Text, View, Document, StyleSheet, Font, Image } from '@react-pdf/renderer';
+import { Page, Text, View, Document, StyleSheet, Image } from '@react-pdf/renderer';
 import { InvoiceDetails } from '../../types';
 
-// Register a standard font to ensure consistent rendering
-Font.register({
-  family: 'Helvetica',
-  fonts: [
-    { src: 'https://cdn.jsdelivr.net/npm/@canvas-fonts/helvetica@1.0.4/Helvetica.ttf' },
-    { src: 'https://cdn.jsdelivr.net/npm/@canvas-fonts/helvetica@1.0.4/Helvetica-Bold.ttf', fontWeight: 'bold' },
-    { src: 'https://cdn.jsdelivr.net/npm/@canvas-fonts/helvetica@1.0.4/Helvetica-Oblique.ttf', fontStyle: 'italic' }
-  ]
-});
+// Using standard PDF fonts ensures text is always selectable/searchable and never rasterized.
+// Helvetica = Sans Serif (matches Inter/Arial)
+// Times-Roman = Serif (matches Playfair Display)
 
 const styles = StyleSheet.create({
   page: {
@@ -36,24 +30,28 @@ const styles = StyleSheet.create({
   },
   logoMain: {
     fontSize: 20,
-    fontWeight: 'bold',
-    letterSpacing: 3,
+    fontFamily: 'Times-Bold', // Serif for the Logo text
+    letterSpacing: 2,
     color: '#A6192E',
     textTransform: 'uppercase',
   },
   logoAmp: {
     fontSize: 14,
+    fontFamily: 'Times-Roman',
     color: '#A6192E',
     marginHorizontal: 5,
   },
   companyDetails: {
     textAlign: 'right',
     fontSize: 9,
-    color: '#475569', // slate-600
+    color: '#475569',
   },
   companyNameBold: {
-    fontWeight: 'bold',
+    fontFamily: 'Helvetica-Bold',
     color: '#000000',
+    fontSize: 9,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
     marginBottom: 2,
   },
   titleContainer: {
@@ -67,26 +65,34 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontFamily: 'Helvetica-Bold',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    color: '#000000',
   },
   receiptStatus: {
-    fontSize: 10,
-    fontWeight: 'bold',
+    fontSize: 9,
+    fontFamily: 'Helvetica-Bold',
     textTransform: 'uppercase',
-    color: '#15803d', // green-700
+    color: '#15803d',
     borderWidth: 1,
     borderColor: '#15803d',
     paddingHorizontal: 8,
     paddingVertical: 2,
   },
+  statusOriginal: {
+    fontSize: 9,
+    fontFamily: 'Helvetica-Bold',
+    textTransform: 'uppercase',
+    color: '#94A3B8', // slate-400
+    letterSpacing: 1,
+  },
   
-  // New Payment Details Box for Receipt
+  // Payment Details Box
   paymentBox: {
     backgroundColor: '#F8FAFC',
-    padding: 10,
-    marginBottom: 20,
+    padding: 12,
+    marginBottom: 25,
     borderWidth: 0.5,
     borderColor: '#E2E8F0',
     flexDirection: 'row',
@@ -100,18 +106,18 @@ const styles = StyleSheet.create({
     color: '#64748B',
     textTransform: 'uppercase',
     letterSpacing: 1,
-    marginBottom: 2,
-    fontWeight: 'bold'
+    marginBottom: 4,
+    fontFamily: 'Helvetica-Bold',
   },
   paymentValue: {
-    fontSize: 9,
-    fontWeight: 'bold',
+    fontSize: 10,
+    fontFamily: 'Helvetica-Bold',
     color: '#000000',
   },
 
   detailsGrid: {
     flexDirection: 'row',
-    marginBottom: 15,
+    marginBottom: 20,
     gap: 40,
   },
   column: {
@@ -119,46 +125,54 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   label: {
     width: 80,
-    fontWeight: 'bold',
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 10,
   },
   value: {
     flex: 1,
+    fontSize: 10,
   },
+  
   addressRow: {
-    flexDirection: 'row',
-    marginBottom: 20,
+    marginTop: 10,
+    marginBottom: 25,
   },
   addressLabel: {
-    width: 80,
-    fontWeight: 'bold',
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 10,
+    marginBottom: 2,
   },
   addressValue: {
-    flex: 1,
+    fontSize: 10,
     textTransform: 'uppercase',
+    lineHeight: 1.6,
+    marginLeft: 80,
+    marginTop: -16, 
   },
   
   receiptAckText: {
     fontSize: 10,
-    fontStyle: 'italic',
+    fontFamily: 'Times-Italic', // Italic Serif for the quote feeling
     color: '#475569',
-    marginBottom: 20,
+    marginBottom: 25,
     paddingLeft: 10,
     borderLeftWidth: 3,
     borderLeftColor: '#E2E8F0',
+    lineHeight: 1.6,
   },
   boldInline: {
-    fontWeight: 'bold',
+    fontFamily: 'Helvetica-Bold', // Switch back to Sans Bold for emphasis
     color: '#000000',
-    fontStyle: 'normal'
   },
 
+  // Table
   table: {
     width: '100%',
-    marginBottom: 10,
+    marginBottom: 5,
   },
   tableHeader: {
     flexDirection: 'row',
@@ -166,34 +180,34 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1.5,
     borderTopColor: '#000000',
     borderBottomColor: '#000000',
-    paddingVertical: 6,
-    marginBottom: 0,
+    paddingVertical: 8,
     backgroundColor: '#F8FAFC'
   },
   tableRow: {
     flexDirection: 'row',
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderBottomWidth: 0.5,
     borderBottomColor: '#E2E8F0',
   },
   colNo: {
     width: '10%',
-    fontWeight: 'bold',
+    fontFamily: 'Helvetica-Bold',
     paddingLeft: 5,
   },
   colDesc: {
     width: '70%',
-    fontWeight: 'bold',
+    fontFamily: 'Helvetica-Bold', // Description is bold in preview
   },
   colAmount: {
     width: '20%',
     textAlign: 'right',
-    fontWeight: 'bold',
+    fontFamily: 'Helvetica-Bold',
     paddingRight: 5,
   },
   colAmountVal: {
     width: '20%',
     textAlign: 'right',
+    fontFamily: 'Helvetica-Bold',
     paddingRight: 5,
   },
   tableFooterLine: {
@@ -215,11 +229,11 @@ const styles = StyleSheet.create({
   },
   totalLabel: {
     fontSize: 12,
-    fontWeight: 'bold',
+    fontFamily: 'Helvetica-Bold',
   },
   totalValue: {
     fontSize: 12,
-    fontWeight: 'bold',
+    fontFamily: 'Helvetica-Bold',
   },
   amountWordsSection: {
     borderBottomWidth: 1,
@@ -228,25 +242,25 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   amountWords: {
-    fontWeight: 'bold',
+    fontFamily: 'Helvetica-Bold',
     textTransform: 'uppercase',
     fontSize: 10,
   },
   termsSection: {
     fontSize: 8,
-    color: '#334155', // slate-700
+    color: '#334155', 
     marginBottom: 40,
   },
   termsTitle: {
     fontSize: 9,
-    fontWeight: 'bold',
+    fontFamily: 'Helvetica-Bold',
     textTransform: 'uppercase',
     color: '#000000',
     marginBottom: 5,
   },
   termItem: {
     flexDirection: 'row',
-    marginBottom: 2,
+    marginBottom: 3,
   },
   termBullet: {
     width: 15,
@@ -269,8 +283,8 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   qrText: {
-    fontSize: 6,
-    fontWeight: 'bold',
+    fontSize: 7,
+    fontFamily: 'Helvetica-Bold',
     textTransform: 'uppercase',
     letterSpacing: 1,
     color: '#94A3B8',
@@ -280,13 +294,13 @@ const styles = StyleSheet.create({
   },
   signText: {
     fontSize: 9,
-    fontStyle: 'italic',
+    fontFamily: 'Times-Italic',
     color: '#64748B',
     marginBottom: 30,
   },
   signCompany: {
     fontSize: 9,
-    fontWeight: 'bold',
+    fontFamily: 'Helvetica-Bold',
     textTransform: 'uppercase',
     color: '#000000',
   },
@@ -301,7 +315,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     textAlign: 'center',
-    fontSize: 6,
+    fontSize: 8,
     color: '#94A3B8',
   }
 });
@@ -311,9 +325,9 @@ interface InvoicePDFProps {
 }
 
 export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data }) => {
-  // Determine mode based on payment existence
   const isReceipt = !!data.payment;
   
+  // Payload for QR Code
   const securePayload = btoa(`AKP_${isReceipt ? 'RECEIPT' : 'INVOICE'}_V1::${data.invoiceNo}::${data.totalAmount}::${data.clientName}`);
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${securePayload}&bgcolor=ffffff`;
 
@@ -342,7 +356,11 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data }) => {
         {/* Title */}
         <View style={styles.titleContainer}>
           <Text style={styles.title}>{isReceipt ? 'PAYMENT RECEIPT' : 'PROFESSIONAL FEE INVOICE'}</Text>
-          {isReceipt && <Text style={styles.receiptStatus}>PAID IN FULL</Text>}
+          {isReceipt ? (
+             <Text style={styles.receiptStatus}>CLEARED</Text>
+          ) : (
+             <Text style={styles.statusOriginal}>Original For Recipient</Text>
+          )}
         </View>
 
         {/* Receipt Specific Payment Box */}
@@ -361,7 +379,7 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data }) => {
                  <Text style={styles.paymentValue}>{data.payment.mode}</Text>
               </View>
               <View style={styles.paymentItem}>
-                 <Text style={styles.paymentLabel}>Reference</Text>
+                 <Text style={styles.paymentLabel}>Ref No</Text>
                  <Text style={styles.paymentValue}>{data.payment.transactionReference || 'N/A'}</Text>
               </View>
            </View>
@@ -375,26 +393,26 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data }) => {
               <Text style={styles.value}>:  {data.invoiceNo}</Text>
             </View>
             <View style={styles.row}>
-              <Text style={styles.label}>Kind Attn.</Text>
-              <Text style={styles.value}>:  {data.kindAttn}</Text>
+              <Text style={styles.label}>Invoice Date</Text>
+              <Text style={styles.value}>:  {new Date(data.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}</Text>
             </View>
           </View>
           <View style={styles.column}>
             <View style={styles.row}>
-              <Text style={styles.label}>Invoice Date</Text>
-              <Text style={styles.value}>:  {new Date(data.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}</Text>
-            </View>
-            <View style={styles.row}>
               <Text style={styles.label}>Client Name</Text>
               <Text style={styles.value}>:  {data.clientName}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.label}>Kind Attn.</Text>
+              <Text style={styles.value}>:  {data.kindAttn}</Text>
             </View>
           </View>
         </View>
 
-        {/* Address Row (Full Width for Proper Alignment) */}
+        {/* Address Row */}
         <View style={styles.addressRow}>
-           <Text style={styles.addressLabel}>Address</Text>
-           <Text style={styles.addressValue}>:  {data.clientAddress}</Text>
+           <Text style={styles.addressLabel}>Billing Address:</Text>
+           <Text style={styles.addressValue}>{data.clientAddress}</Text>
         </View>
 
         {isReceipt && (
@@ -456,6 +474,7 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data }) => {
         {/* Footer Signatures */}
         <View style={styles.footerSection}>
           <View style={styles.qrContainer}>
+             {/* Note: React-PDF Image component requires a valid URL. If QR generation fails, it handles gracefully */}
              <Image src={qrUrl} style={styles.qrImage} />
              <Text style={styles.qrText}>Secure Verification ID</Text>
           </View>

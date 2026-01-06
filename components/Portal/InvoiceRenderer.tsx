@@ -1,7 +1,9 @@
 
-import React from 'react';
-import { X, Printer, Download, CheckCircle, Receipt, Calendar, CreditCard, Hash } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Printer, Download, CheckCircle, Receipt, Calendar, CreditCard, Hash, Loader2 } from 'lucide-react';
+import { pdf } from '@react-pdf/renderer';
 import { InvoiceDetails } from '../../types';
+import { InvoicePDF } from './InvoicePDF';
 
 interface InvoiceRendererProps {
   data: InvoiceDetails;
@@ -10,8 +12,9 @@ interface InvoiceRendererProps {
 }
 
 export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose, mode = 'invoice' }) => {
+  const [isGenerating, setIsGenerating] = useState(false);
   
-  // Secure QR Generation
+  // Secure QR Generation for Display
   const securePayload = btoa(`AKP_${mode.toUpperCase()}_V1::${data.invoiceNo}::${data.totalAmount}::${data.clientName}`);
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${securePayload}&bgcolor=ffffff`;
 
@@ -20,14 +23,50 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
     window.print();
   };
 
+  const handleDownloadPDF = async () => {
+    setIsGenerating(true);
+    try {
+      // Generate the Blob using React-PDF
+      // This ensures a true, vector-based PDF file, not a browser screenshot/printout
+      const blob = await pdf(<InvoicePDF data={data} />).toBlob();
+      
+      // Create a temporary link to download the blob
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${mode === 'receipt' ? 'Receipt' : 'Invoice'}_${data.invoiceNo}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("PDF Generation failed", error);
+      alert("Failed to generate secure PDF document.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-sm flex justify-center overflow-y-auto py-8 px-4 print:p-0 print:bg-white print:fixed print:inset-0">
       <div className="bg-white w-full max-w-[210mm] shadow-2xl relative min-h-[297mm] flex flex-col h-fit animate-reveal-up print:shadow-none print:w-full print:max-w-none print:h-full print:animate-none">
         
         {/* Floating Controls (Don't Print) */}
         <div className="absolute top-0 right-0 p-4 flex gap-2 print:hidden -mr-16">
-          <button onClick={handlePrint} className="p-3 bg-white text-slate-900 hover:bg-[#CC1414] hover:text-white rounded-full transition-colors shadow-lg" title="Download/Print PDF">
-             <Download size={20}/>
+          <button 
+            onClick={handleDownloadPDF} 
+            disabled={isGenerating}
+            className="p-3 bg-white text-slate-900 hover:bg-[#CC1414] hover:text-white rounded-full transition-colors shadow-lg flex items-center justify-center" 
+            title="Download PDF"
+          >
+             {isGenerating ? <Loader2 size={20} className="animate-spin" /> : <Download size={20}/>}
+          </button>
+          <button 
+            onClick={handlePrint} 
+            className="p-3 bg-white text-slate-400 hover:text-slate-900 rounded-full transition-colors shadow-lg" 
+            title="Quick Print"
+          >
+             <Printer size={20}/>
           </button>
           <button onClick={onClose} className="p-3 bg-white text-slate-400 hover:text-red-600 rounded-full transition-colors shadow-lg">
              <X size={20}/>
@@ -41,9 +80,9 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
           <div className="flex justify-between items-start mb-12">
             <div className="flex flex-col">
                <div className="flex items-center font-sans uppercase tracking-[0.15em] text-[#A6192E] font-bold mb-4">
-                  <span className="text-2xl leading-none">AK PANDEY</span>
+                  <span className="text-2xl leading-none font-serif">AK PANDEY</span>
                   <span className="text-sm mx-1.5 self-center">&</span>
-                  <span className="text-2xl leading-none">ASSOCIATES</span>
+                  <span className="text-2xl leading-none font-serif">ASSOCIATES</span>
                </div>
             </div>
             <div className="text-right text-[10px] leading-relaxed text-slate-600">
@@ -122,8 +161,8 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
           </div>
 
           {mode === 'receipt' && (
-             <div className="mb-10 text-[13px] leading-relaxed italic text-slate-600 border-l-4 border-slate-200 pl-4 py-2">
-                "Received with thanks from <strong className="text-black not-italic">{data.clientName}</strong> a sum of <strong className="text-black not-italic">INR {data.totalAmount.toLocaleString()}</strong> towards the full and final settlement of Invoice No. {data.invoiceNo}."
+             <div className="mb-10 text-[13px] leading-relaxed italic text-slate-600 border-l-4 border-slate-200 pl-4 py-2 font-serif">
+                "Received with thanks from <strong className="text-black not-italic font-sans">{data.clientName}</strong> a sum of <strong className="text-black not-italic font-sans">INR {data.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong> towards the full and final settlement of Invoice No. {data.invoiceNo}."
              </div>
           )}
 
@@ -142,9 +181,9 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
                       <tr key={idx}>
                          <td className="py-3 pl-2 align-top">{idx + 1}.</td>
                          <td className="py-3 align-top pr-8">
-                            <p className="font-medium text-black">{item.description}</p>
+                            <p className="font-bold text-black">{item.description}</p>
                          </td>
-                         <td className="py-3 pr-2 align-top text-right font-medium text-black">
+                         <td className="py-3 pr-2 align-top text-right font-bold text-black">
                             {item.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                          </td>
                       </tr>
@@ -197,7 +236,7 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
                 </div>
 
                 <div className="text-right">
-                   <p className="mb-12 text-slate-500 italic">This document is digitally signed</p>
+                   <p className="mb-12 text-slate-500 italic font-serif">This document is digitally signed</p>
                    <p className="font-bold text-black uppercase">For AK Pandey & Associates</p>
                    <p className="text-slate-500 mt-1">Authorized Signatory</p>
                 </div>
