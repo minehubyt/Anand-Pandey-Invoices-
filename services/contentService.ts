@@ -371,6 +371,8 @@ export const contentService = {
   subscribeJobs: (callback: (jobs: Job[]) => void) => {
     return onSnapshot(collection(db, COLLECTIONS.JOBS), (snapshot) => {
       const allJobs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Job));
+      // Sort by postedDate descending to ensure latest jobs come first
+      allJobs.sort((a, b) => new Date(b.postedDate).getTime() - new Date(a.postedDate).getTime());
       callback(allJobs.filter(j => j.status === 'active'));
     }, (error) => console.error("Jobs Subscription Error:", error));
   },
@@ -396,7 +398,10 @@ export const contentService = {
 
   subscribeAllApplications: (callback: (apps: JobApplication[]) => void) => {
     return onSnapshot(collection(db, COLLECTIONS.APPLICATIONS), (snapshot) => {
-      callback(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as JobApplication)));
+      const apps = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as JobApplication));
+      // Sort by submittedDate descending to ensure latest applications come first
+      apps.sort((a, b) => new Date(b.submittedDate).getTime() - new Date(a.submittedDate).getTime());
+      callback(apps);
     });
   },
 
