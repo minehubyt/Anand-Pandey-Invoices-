@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
   // --- Words Section ---
   amountWordsSection: {
     marginTop: 20,
-    marginBottom: 40,
+    marginBottom: 30, // Reduced slightly to bring terms up
     borderBottomWidth: 1,
     borderBottomColor: '#000000',
     paddingBottom: 10,
@@ -214,9 +214,21 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
 
-  // --- Terms ---
-  termsContainer: {
+  // --- Terms & QR Combined Section ---
+  termsAndQrContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: 20,
+    marginTop: 10,
+  },
+  termsColumn: {
+    width: '60%',
+  },
+  qrColumn: {
+    width: '35%',
+    alignItems: 'center',
+    paddingTop: 10,
   },
   termsTitle: {
     fontSize: 9,
@@ -239,21 +251,17 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: '#000000',
   },
+  termTextBold: {
+    flex: 1,
+    fontSize: 9,
+    color: '#000000',
+    fontFamily: 'Helvetica-Bold',
+  },
 
-  // --- Signature ---
-  footerSection: {
-    marginTop: 40,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-  },
-  qrContainer: {
-    flexDirection: 'column',
-    alignItems: 'center',
-  },
+  // --- QR Specifics ---
   qrImage: {
-    width: 70,
-    height: 70,
+    width: 150, // Increased size as requested
+    height: 150,
     marginBottom: 4,
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -271,8 +279,15 @@ const styles = StyleSheet.create({
     color: '#666666',
     marginTop: 2,
   },
+
+  // --- Signature ---
+  footerSection: {
+    marginTop: 20,
+    flexDirection: 'row',
+    justifyContent: 'flex-end', // Only signature at bottom right now
+    alignItems: 'flex-end',
+  },
   signatureContainer: {
-    alignSelf: 'flex-end',
     textAlign: 'right',
   },
   signText: {
@@ -301,8 +316,8 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data, type = 'invoice' }
   const upiId = "7541076176@ybl";
   const payeeName = "AK Pandey Associates";
   const note = `Inv ${data.invoiceNo}`;
-  const upiString = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${data.totalAmount.toFixed(2)}&tn=${encodeURIComponent(note)}&cu=INR`;
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(upiString)}&bgcolor=ffffff`;
+  const upiString = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${Number(data.totalAmount).toFixed(2)}&tn=${encodeURIComponent(note)}&cu=INR`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=450x450&data=${encodeURIComponent(upiString)}&bgcolor=ffffff`;
 
   return (
     <Document>
@@ -385,7 +400,7 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data, type = 'invoice' }
         {/* Receipt Acknowledgement Text */}
         {isReceipt && (
            <Text style={{ fontFamily: 'Helvetica-Oblique', fontSize: 10, marginBottom: 20, color: '#000000' }}>
-              Received with thanks from {data.clientName} a sum of INR {data.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })} towards full and final settlement.
+              Received with thanks from {data.clientName} a sum of INR {Number(data.totalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })} towards full and final settlement.
            </Text>
         )}
 
@@ -401,7 +416,7 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data, type = 'invoice' }
               <View key={idx} style={styles.tableRow}>
                  <Text style={styles.colNo}>{idx + 1}.</Text>
                  <Text style={styles.colDesc}>{item.description}</Text>
-                 <Text style={styles.colAmountVal}>{item.amount.toFixed(0)}</Text>
+                 <Text style={styles.colAmountVal}>{Number(item.amount).toFixed(2)}</Text>
               </View>
            ))}
         </View>
@@ -410,7 +425,7 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data, type = 'invoice' }
         <View style={styles.totalSection}>
            <View style={styles.totalContainer}>
               <Text style={styles.totalLabel}>{isReceipt ? 'Amount Received' : 'Gross Amount'}</Text>
-              <Text style={styles.totalValue}>{data.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</Text>
+              <Text style={styles.totalValue}>{Number(data.totalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</Text>
            </View>
         </View>
 
@@ -419,34 +434,42 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data, type = 'invoice' }
            <Text style={styles.amountWords}>RUPEES {data.amountInWords}</Text>
         </View>
 
-        {/* Terms */}
-        <View style={styles.termsContainer}>
-           <Text style={styles.termsTitle}>{isReceipt ? 'PAYMENT ACKNOWLEDGEMENT' : 'TERMS AND CONDITIONS'}</Text>
-           {isReceipt ? (
-              <Text style={{ fontSize: 9, color: '#000000' }}>
-                 This receipt is computer generated and valid without signature. The payment has been credited to AK Pandey & Associates.
-              </Text>
-           ) : (
-              data.terms.map((term, i) => (
-                 <View key={i} style={styles.termItem}>
-                    <Text style={styles.termBullet}>{String.fromCharCode(97 + i)})</Text>
-                    <Text style={styles.termText}>{term}</Text>
-                 </View>
-              ))
-           )}
-        </View>
-
-        {/* Footer Area with QR & Signature */}
-        <View style={styles.footerSection}>
+        {/* Terms & QR Code (Side by Side) */}
+        <View style={styles.termsAndQrContainer}>
            
-           {/* Functional Payment QR Code */}
-           <View style={styles.qrContainer}>
+           {/* Terms Column */}
+           <View style={styles.termsColumn}>
+              <Text style={styles.termsTitle}>{isReceipt ? 'PAYMENT ACKNOWLEDGEMENT' : 'TERMS AND CONDITIONS'}</Text>
+              {isReceipt ? (
+                 <Text style={{ fontSize: 9, color: '#000000' }}>
+                    This receipt is computer generated and valid without signature. The payment has been credited to AK Pandey & Associates.
+                 </Text>
+              ) : (
+                 data.terms.map((term, i) => {
+                    // Logic to detect Bank Details string and bold it
+                    const isBankDetails = term.toLowerCase().includes('bank details') || term.toLowerCase().includes('ifsc');
+                    return (
+                       <View key={i} style={styles.termItem}>
+                          <Text style={styles.termBullet}>{String.fromCharCode(97 + i)})</Text>
+                          <Text style={isBankDetails ? styles.termTextBold : styles.termText}>{term}</Text>
+                       </View>
+                    );
+                 })
+              )}
+           </View>
+
+           {/* QR Column */}
+           <View style={styles.qrColumn}>
               <Image style={styles.qrImage} src={qrUrl} />
               <Text style={styles.qrLabel}>Scan to Pay via UPI</Text>
               <Text style={styles.qrSubLabel}>GPay • PhonePe • Paytm</Text>
               <Text style={{ fontSize: 6, fontFamily: 'Helvetica', color: '#999', marginTop: 1 }}>{upiId}</Text>
            </View>
 
+        </View>
+
+        {/* Footer Signature Area */}
+        <View style={styles.footerSection}>
            {/* Signature - ONLY FOR INVOICES */}
            {!isReceipt && (
               <View style={styles.signatureContainer}>

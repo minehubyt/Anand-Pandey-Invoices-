@@ -23,8 +23,8 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
   // Ensure amount is formatted to 2 decimal places for the payment string
   const upiString = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${data.totalAmount.toFixed(2)}&tn=${encodeURIComponent(note)}&cu=INR`;
   
-  // Generate QR Image URL using the UPI string
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(upiString)}&bgcolor=ffffff`;
+  // Generate QR Image URL using the UPI string - Increased size request
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(upiString)}&bgcolor=ffffff`;
 
   const handlePrint = () => {
     document.title = `${mode === 'receipt' ? 'RECEIPT' : 'INVOICE'}_${data.invoiceNo}`;
@@ -219,52 +219,60 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
              <p className="font-bold text-black uppercase">RUPEES {data.amountInWords}</p>
           </div>
 
-          {/* Footer Terms */}
-          <div className="text-[10px] leading-relaxed text-slate-700">
-             {mode === 'invoice' ? (
-                <>
-                   <p className="font-bold mb-2 uppercase text-black">Terms and Conditions</p>
-                   <ul className="list-none space-y-1 pl-0 mb-8">
-                      {data.terms.map((term, i) => (
-                         <li key={i} className="flex gap-2">
-                            <span>{String.fromCharCode(97 + i)})</span>
-                            <span>{term}</span>
-                         </li>
-                      ))}
-                   </ul>
-                </>
-             ) : (
-                <div className="mb-8">
-                   <p className="font-bold mb-1 uppercase text-black">Payment Acknowledgement</p>
-                   <p>This is a computer generated receipt. The payment has been credited to the account of AK Pandey & Associates. Subject to realization of Cheques/Drafts.</p>
+          {/* Footer Grid: Terms (Left) + QR (Right) */}
+          <div className="grid grid-cols-[1fr_auto] gap-12 items-start mt-8 mb-12">
+             
+             {/* Left Column: Terms & Payment Info */}
+             <div className="text-[10px] leading-relaxed text-slate-700">
+               {mode === 'invoice' ? (
+                  <>
+                     <p className="font-bold mb-4 uppercase text-black border-b border-slate-100 pb-2">Terms and Conditions</p>
+                     <ul className="list-none space-y-2 pl-0 mb-8">
+                        {data.terms.map((term, i) => {
+                           const isBankDetails = term.toLowerCase().includes('bank details') || term.toLowerCase().includes('ifsc');
+                           return (
+                              <li key={i} className="flex gap-2">
+                                 <span>{String.fromCharCode(97 + i)})</span>
+                                 <span className={isBankDetails ? "font-bold text-black" : ""}>{term}</span>
+                              </li>
+                           );
+                        })}
+                     </ul>
+                  </>
+               ) : (
+                  <div className="mb-8">
+                     <p className="font-bold mb-1 uppercase text-black">Payment Acknowledgement</p>
+                     <p>This is a computer generated receipt. The payment has been credited to the account of AK Pandey & Associates. Subject to realization of Cheques/Drafts.</p>
+                  </div>
+               )}
+             </div>
+
+             {/* Right Column: QR Code (Beside Terms) */}
+             <div className="flex flex-col items-center shrink-0">
+                <div className="relative group">
+                   <img src={qrUrl} alt="Payment QR" className="w-40 h-40 border border-slate-200 p-1 mb-2" />
+                   <div className="absolute -inset-1 border border-dashed border-slate-300 rounded-sm pointer-events-none opacity-50"></div>
+                </div>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-900 mt-1">Scan to Pay</span>
+                <span className="text-[8px] text-slate-500 font-mono mb-1">{upiId}</span>
+                <div className="flex items-center gap-2 opacity-70 mt-1">
+                   <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide border px-1 rounded">GPay</span>
+                   <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide border px-1 rounded">PhonePe</span>
+                   <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide border px-1 rounded">Paytm</span>
+                </div>
+             </div>
+
+          </div>
+
+          {/* Bottom Signature Area (Separate Row) */}
+          <div className="flex justify-end mt-4">
+             {mode === 'invoice' && (
+                <div className="text-right">
+                   <p className="mb-12 text-slate-500 italic font-serif">This document is digitally signed</p>
+                   <p className="font-bold text-black uppercase">For AK Pandey & Associates</p>
+                   <p className="text-slate-500 mt-1">Authorized Signatory</p>
                 </div>
              )}
-
-             {/* Bottom Signature & QR Area */}
-             <div className="flex justify-between items-end mt-16">
-                <div className="flex flex-col items-center">
-                   {/* PAYMENT QR CODE */}
-                   <div className="relative group">
-                      <img src={qrUrl} alt="Payment QR" className="w-24 h-24 border border-slate-200 p-1 mb-2" />
-                      <div className="absolute -inset-1 border border-dashed border-slate-300 rounded-sm pointer-events-none opacity-50"></div>
-                   </div>
-                   <span className="text-[9px] font-bold uppercase tracking-widest text-slate-900 mt-1">Scan to Pay</span>
-                   <span className="text-[8px] text-slate-500 font-mono mb-1">{upiId}</span>
-                   <div className="flex items-center gap-2 opacity-70 mt-1">
-                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide border px-1 rounded">GPay</span>
-                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide border px-1 rounded">PhonePe</span>
-                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide border px-1 rounded">Paytm</span>
-                   </div>
-                </div>
-
-                {mode === 'invoice' && (
-                   <div className="text-right">
-                      <p className="mb-12 text-slate-500 italic font-serif">This document is digitally signed</p>
-                      <p className="font-bold text-black uppercase">For AK Pandey & Associates</p>
-                      <p className="text-slate-500 mt-1">Authorized Signatory</p>
-                   </div>
-                )}
-             </div>
           </div>
 
         </div>
