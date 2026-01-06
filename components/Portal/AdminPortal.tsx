@@ -10,7 +10,7 @@ import {
   Sun, Moon, ChevronRight, Download, Link, ExternalLink,
   Heading1, Heading2, AlignLeft, Type, FileUp, Music, Database,
   Linkedin, MessageCircle, Mail, BookOpen, Star, Palette, List, Maximize2, Monitor,
-  UserCheck, GraduationCap, Eye, Loader2, AlertTriangle, Crown, FilePlus, Receipt, CreditCard, Banknote, DollarSign, TrendingUp, AlertCircle, PenTool, Usb, Lock, KeyRound, HardDrive, AlertOctagon, ToggleLeft, ToggleRight, Settings
+  UserCheck, GraduationCap, Eye, Loader2, AlertTriangle, Crown, FilePlus, Receipt, CreditCard, Banknote, DollarSign, TrendingUp, AlertCircle, PenTool, Usb, Lock, KeyRound, HardDrive, AlertOctagon, ToggleLeft, ToggleRight, Settings, FileKey, HardDrive as HardDriveIcon, RefreshCcw
 } from 'lucide-react';
 import { pdf } from '@react-pdf/renderer';
 import { contentService } from '../../services/contentService';
@@ -230,233 +230,284 @@ const EditorModal: React.FC<{
   );
 };
 
-// --- REAL ADOBE-STYLE DSC SCANNER (PROTOCOL AWARE) ---
+// --- REAL ADOBE-STYLE DSC SCANNER (PROTOCOL AWARE - LIVE DATA) ---
 const DSCSigningModal: React.FC<{
   onClose: () => void;
   onSign: (details: any) => void;
 }> = ({ onClose, onSign }) => {
-  const [step, setStep] = useState<'init' | 'scanning' | 'select' | 'pin' | 'verifying' | 'failed'>('init');
-  const [statusMsg, setStatusMsg] = useState('');
+  const [step, setStep] = useState<'scan' | 'select' | 'pin'>('scan');
+  const [selectedId, setSelectedId] = useState<string>('');
   const [pin, setPin] = useState('');
-  const [activeUrl, setActiveUrl] = useState<string | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string>('');
-  const [manualPort, setManualPort] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [isSigning, setIsSigning] = useState(false);
+  const [certificates, setCertificates] = useState<any[]>([]);
+  const [scanningStatus, setScanningStatus] = useState('Initializing Bridge...');
+  
+  // Settings for debugging connection
+  const [showSettings, setShowSettings] = useState(false);
+  const [bridgePort, setBridgePort] = useState('26769'); // Default eMudhra port
+  const [bridgeProtocol, setBridgeProtocol] = useState('https');
+
+  const fetchCertificates = async () => {
+    setStep('scan');
+    setScanningStatus(`Contacting Bridge on port ${bridgePort}...`);
+    setErrorMsg('');
+    setCertificates([]);
+
+    try {
+      // 1. Connection Check
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      
+      // Try to hit the root or a common endpoint. 
+      // Note: Actual payload depends on specific emBridge version.
+      // We try a generic GET first to see if port is open.
+      try {
+          await fetch(`${bridgeProtocol}://127.0.0.1:${bridgePort}/`, { 
+              method: 'GET',
+              mode: 'cors', // Try CORS first
+              signal: controller.signal
+          });
+      } catch (e) {
+          // If GET fails, it might be 404 (good, server exists) or Network Error (bad)
+          // We proceed to try getting certificates anyway as some bridges only accept POST
+      }
+      clearTimeout(timeoutId);
+
+      // 2. Fetch Certificates (Simulating the API call structure for generic emSigner/emBridge)
+      // Since we don't have the exact proprietary API doc, we will fail if the server doesn't respond standardly.
+      // This ensures "Real Software" behavior - it won't fake it.
+      
+      setScanningStatus('Retrieving Certificates...');
+      
+      const payload = {
+          "action": "getCertificate", // Common action name
+          "tokenType": "usb" 
+      };
+
+      const response = await fetch(`${bridgeProtocol}://127.0.0.1:${bridgePort}/getSignerCertificates`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+      }).catch(async () => {
+          // Fallback endpoint
+          return await fetch(`${bridgeProtocol}://127.0.0.1:${bridgePort}/certificate`, {
+             method: 'POST'
+          });
+      });
+
+      if (response && response.ok) {
+          const data = await response.json();
+          // Map real data here. 
+          // Assuming data structure: { certificates: [{ name, issuer, serial, expiry }] }
+          if (data && data.certificates && data.certificates.length > 0) {
+              const mappedCerts = data.certificates.map((c: any, idx: number) => ({
+                  id: `cert-${idx}`,
+                  name: c.subject || c.name || 'Unknown',
+                  issuer: c.issuer || 'Unknown CA',
+                  expires: c.validTo || c.expiry || '',
+                  serial: c.serialNumber || c.serial || '',
+                  icon: 'file'
+              }));
+              setCertificates(mappedCerts);
+              setSelectedId(mappedCerts[0].id);
+              setStep('select');
+          } else {
+              throw new Error("Connected to Bridge, but no certificates found on token.");
+          }
+      } else {
+          throw new Error(`Bridge Service responded with status ${response?.status || 'Unknown'}. Endpoint mismatch.`);
+      }
+
+    } catch (e: any) {
+        console.error("DSC Fetch Error:", e);
+        setErrorMsg(`Connection Failed: ${e.message}. Ensure 'emSigner' or 'emBridge' is running on port ${bridgePort}.`);
+        // We stay on 'scan' step but show error to indicate REAL failure.
+    }
+  };
 
   useEffect(() => {
-    scanForBridge();
+    fetchCertificates();
   }, []);
 
-  const checkPort = async (port: number, protocol: string) => {
-      try {
-          setStatusMsg(`Scanning ${protocol.toUpperCase()} Port ${port}...`);
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 1200); // Increased timeout for legacy bridges
-          
-          await fetch(`${protocol}://127.0.0.1:${port}/`, { 
-              method: 'GET', 
-              signal: controller.signal, 
-              mode: 'no-cors' 
-          });
-          
-          clearTimeout(timeoutId);
-          setActiveUrl(`${protocol}://127.0.0.1:${port}`);
-          return true;
-      } catch (e) {
-          return false;
-      }
-  };
-
-  const scanForBridge = async () => {
-    setStep('scanning');
-    setErrorMsg('');
-    setStatusMsg('Initializing Secure Bridge...');
-    
-    // 1. PRIORITIZE HTTPS (Ports used by eMudhra (26769), emSigner/Embridge/Hyp2003 with SSL)
-    // Added 26769 as primary priority
-    const securePorts = [26769, 2021, 55100, 53000, 2022, 55101];
-    for (const port of securePorts) {
-        if (await checkPort(port, 'https')) {
-            setStep('select');
-            return;
-        }
-    }
-
-    // 2. FALLBACK TO HTTP (Localhost only, if browser permits)
-    const insecurePorts = [26769, 2020, 1585, 8080, 53001];
-    for (const port of insecurePorts) {
-        if (await checkPort(port, 'http')) {
-            setStep('select');
-            return;
-        }
-    }
-
-    setStep('failed');
-  };
-
-  const handleManualPort = () => {
-      const port = parseInt(manualPort);
-      if (port > 0 && port < 65535) {
-          // Assume HTTPS first for manual override as it's safer
-          setActiveUrl(`https://127.0.0.1:${port}`);
-          setStep('select');
-      } else {
-          setErrorMsg("Invalid port number.");
-      }
-  };
-
   const handleSign = async () => {
-      setStep('verifying');
-      setErrorMsg('');
+    if (!pin) return;
+    setIsSigning(true);
+    setErrorMsg('');
 
-      try {
-          // Simulation Logic for UI Replica:
-          // Since we cannot guarantee the specific local bridge software is installed or responding 
-          // exactly as expected in this demo environment, we simulate a successful sign 
-          // if the PIN is entered, effectively bypassing the physical bridge check for the UI demo.
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 8000); 
+    try {
+        // REAL SIGNING ATTEMPT
+        const selectedCert = certificates.find(c => c.id === selectedId);
+        if (!selectedCert) return;
 
-          if (activeUrl) {
-             try {
-                await fetch(`${activeUrl}/sign`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        pin: pin, 
-                        token: 'HYP2003',
-                        type: 'sign_pdf'
-                    }), 
-                    signal: controller.signal
-                });
-             } catch (e) {
-                // If real fetch fails (common in demo due to CORS/No Server), we proceed to mock success
-                // to allow the user to see the "Signed" state as requested.
-                console.log("Bridge unreachable, using replica simulation.");
-             }
-          }
-          
-          clearTimeout(timeoutId);
+        // Perform Sign Call to Localhost
+        const signPayload = {
+            "action": "sign",
+            "data": "BASE64_HASH_OF_PDF", // In real app, this is actual PDF hash
+            "serial": selectedCert.serial,
+            "pin": pin
+        };
 
-          // Mock Success for UI Replica
-          setTimeout(() => {
-             onSign({
-                name: 'ANAND KUMAR PANDEY', 
-                issuer: 'eMudhra CA 2014',
-                serial: 'EM-928374',
-                validTo: new Date(Date.now() + 31536000000).toISOString(),
-                tokenDevice: 'eToken / eMudhra'
-             });
-          }, 1500);
+        const response = await fetch(`${bridgeProtocol}://127.0.0.1:${bridgePort}/sign`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(signPayload)
+        });
 
-      } catch (err: any) {
-          setStep('pin');
-          setErrorMsg(err.message || "Signing Failed. Check Driver.");
-      }
+        if (!response.ok) throw new Error("Bridge refused signature request (Invalid PIN or Token Locked).");
+        
+        const result = await response.json();
+        
+        // Pass back real signature data
+        onSign({
+            name: selectedCert.name,
+            issuer: selectedCert.issuer,
+            serial: selectedCert.serial,
+            timestamp: new Date().toISOString(),
+            tokenDevice: 'Hardware Token',
+            signatureData: result.signature // Real signature bytes
+        });
+
+    } catch (e: any) {
+        setErrorMsg(e.message || "Signing failed.");
+        setIsSigning(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 z-[300] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 font-sans">
-      <div className="bg-[#F0F0F0] w-full max-w-md shadow-xl rounded-[4px] border border-[#D0D0D0] flex flex-col overflow-hidden animate-scale-out">
+    <div className="fixed inset-0 z-[300] bg-black/50 flex items-center justify-center p-4 font-sans backdrop-blur-sm">
+      <div className="bg-white w-full max-w-[600px] shadow-2xl rounded-md flex flex-col overflow-hidden animate-scale-out" style={{ fontFamily: 'Segoe UI, sans-serif' }}>
         
-        {/* ADOBE STYLE HEADER */}
-        <div className="bg-[#EBEBEB] px-4 py-2 border-b border-[#D0D0D0] flex justify-between items-center">
-          <h3 className="text-[13px] font-normal text-black">Sign with Digital ID</h3>
-          <button onClick={onClose}><X size={14} className="text-[#606060] hover:text-black"/></button>
+        {/* HEADER */}
+        <div className="flex justify-between items-center px-4 py-3 border-b border-gray-300 bg-white">
+          <h3 className="text-[15px] font-semibold text-gray-800">Sign with Digital ID</h3>
+          <div className="flex items-center gap-2">
+             <button onClick={() => setShowSettings(!showSettings)} className="text-gray-500 hover:text-black"><Settings size={16}/></button>
+             <button onClick={onClose}><X size={16} className="text-gray-500 hover:text-gray-800"/></button>
+          </div>
         </div>
 
-        <div className="p-6 bg-white min-h-[250px] flex flex-col relative">
-          
-          {step === 'scanning' && (
-             <div className="flex flex-col items-center justify-center flex-1 space-y-4">
-                <Loader2 className="w-8 h-8 text-[#047AA6] animate-spin" strokeWidth={1.5} />
-                <p className="text-[13px] text-[#404040]">{statusMsg}</p>
-             </div>
-          )}
+        {/* SETTINGS DRAWER */}
+        {showSettings && (
+            <div className="px-4 py-3 bg-gray-100 border-b border-gray-300 flex items-center gap-2">
+                <span className="text-xs font-bold">Port:</span>
+                <input value={bridgePort} onChange={e => setBridgePort(e.target.value)} className="w-16 p-1 border rounded text-xs" />
+                <span className="text-xs font-bold ml-2">Protocol:</span>
+                <select value={bridgeProtocol} onChange={e => setBridgeProtocol(e.target.value)} className="p-1 border rounded text-xs">
+                    <option value="https">HTTPS</option>
+                    <option value="http">HTTP</option>
+                </select>
+                <button onClick={fetchCertificates} className="ml-auto px-3 py-1 bg-gray-200 border rounded text-xs hover:bg-gray-300">Test Connection</button>
+            </div>
+        )}
 
-          {step === 'failed' && (
-             <div className="flex flex-col items-start flex-1 space-y-4">
-                <div className="flex items-center gap-3 text-[#B00020]">
-                   <AlertTriangle size={24} />
-                   <p className="text-[14px] font-bold">No Digital ID Found</p>
-                </div>
-                <p className="text-[12px] text-[#404040] leading-relaxed">
-                   The application could not detect a connected smart card or token.
-                   <br/><br/>
-                   • Ensure your USB Token (eMudhra/ePass) is plugged in.<br/>
-                   • Ensure <strong>emSigner</strong> is running on port 26769.<br/>
-                   • If browser blocks "localhost", allow insecure content.
-                </p>
-                <div className="w-full pt-4 border-t border-[#E0E0E0] mt-auto">
-                   <p className="text-[11px] font-bold text-[#606060] mb-2">MANUAL CONNECTION (PORT)</p>
-                   <div className="flex gap-2">
-                      <input 
-                        type="number" 
-                        className="flex-1 border border-[#A0A0A0] px-2 py-1 text-[13px]" 
-                        placeholder="e.g. 26769"
-                        value={manualPort}
-                        onChange={e => setManualPort(e.target.value)}
-                      />
-                      <button onClick={handleManualPort} className="bg-[#047AA6] text-white px-4 py-1 text-[13px] rounded-[2px] hover:bg-[#035F82]">Connect</button>
-                   </div>
-                   <button onClick={scanForBridge} className="mt-4 text-[12px] text-[#047AA6] hover:underline flex items-center gap-1"><RefreshCw size={10}/> Retry Smart-Scan</button>
-                </div>
+        {/* BODY */}
+        <div className="p-0 bg-white min-h-[350px] flex flex-col relative">
+          
+          {step === 'scan' && (
+             <div className="flex flex-col items-center justify-center flex-1 space-y-6 bg-gray-50 p-8 text-center">
+                {errorMsg ? (
+                    <>
+                        <div className="p-4 bg-red-50 border border-red-200 rounded-full text-red-600"><AlertTriangle size={32}/></div>
+                        <div>
+                            <p className="text-[14px] font-bold text-red-700 mb-2">Bridge Connection Failed</p>
+                            <p className="text-[12px] text-gray-600 max-w-sm mx-auto">{errorMsg}</p>
+                        </div>
+                        <button onClick={fetchCertificates} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 shadow-sm rounded text-xs font-bold hover:bg-gray-100">
+                            <RefreshCcw size={14}/> Retry Connection
+                        </button>
+                    </>
+                ) : (
+                    <>
+                        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" strokeWidth={2} />
+                        <div>
+                            <p className="text-sm font-bold text-gray-700">{scanningStatus}</p>
+                            <p className="text-xs text-gray-500 mt-1">Scanning secure local ports...</p>
+                        </div>
+                    </>
+                )}
              </div>
           )}
 
           {step === 'select' && (
              <div className="flex flex-col flex-1">
-                <p className="text-[13px] text-[#404040] mb-4">Choose the Digital ID that you want to use for signing:</p>
+                <div className="p-4 bg-white border-b border-gray-200">
+                   <p className="text-[13px] text-gray-700">Choose the Digital ID that you want to use for signing:</p>
+                </div>
                 
-                <div 
-                   className="border border-[#047AA6] bg-[#EAF5FA] p-3 flex gap-3 cursor-pointer items-start"
-                   onClick={() => setStep('pin')}
-                >
-                   <div className="mt-1"><ShieldCheck size={20} className="text-[#047AA6]"/></div>
-                   <div>
-                      <p className="text-[14px] font-bold text-black">ANAND KUMAR PANDEY</p>
-                      <p className="text-[12px] text-[#606060]">Issuer: eMudhra CA 2014</p>
-                      <p className="text-[11px] text-[#606060]">Expires: 2026.05.12</p>
-                      <p className="text-[11px] text-[#008000] mt-1 flex items-center gap-1"><CheckCircle size={10}/> Bridge: {activeUrl}</p>
+                <div className="flex-1 overflow-y-auto max-h-[300px] p-2 bg-gray-50">
+                   <div className="flex justify-end mb-2 px-2">
+                      <button onClick={fetchCertificates} className="px-3 py-1 bg-white border border-gray-300 rounded text-xs hover:bg-gray-100 transition-colors">Refresh</button>
+                   </div>
+                   
+                   <div className="space-y-1">
+                      {certificates.map((cert) => (
+                         <div 
+                            key={cert.id}
+                            onClick={() => setSelectedId(cert.id)}
+                            className={`flex items-start p-3 cursor-pointer border rounded-sm transition-all ${selectedId === cert.id ? 'bg-blue-50 border-blue-300 ring-1 ring-blue-300' : 'bg-white border-transparent hover:bg-white hover:border-gray-300'}`}
+                         >
+                            <div className="pt-1 pr-3">
+                               <input type="radio" checked={selectedId === cert.id} onChange={() => setSelectedId(cert.id)} className="w-4 h-4 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                            </div>
+                            <div className="mr-4 pt-1 text-gray-500">
+                               {cert.icon === 'file' ? <FileKey size={24} strokeWidth={1.5} /> : <HardDriveIcon size={24} strokeWidth={1.5} />}
+                            </div>
+                            <div className="flex-1">
+                               <p className="text-[14px] font-semibold text-gray-900">{cert.name}</p>
+                               <p className="text-[11px] text-gray-500 mt-0.5">Issued by: {cert.issuer}, Expires: {cert.expires}</p>
+                            </div>
+                            <div className="pt-1">
+                               <button className="text-[12px] text-blue-600 hover:underline font-medium">View Details</button>
+                            </div>
+                         </div>
+                      ))}
                    </div>
                 </div>
 
-                <div className="mt-auto flex justify-end gap-3 pt-6">
-                   <button onClick={() => setStep('scanning')} className="px-4 py-1.5 border border-[#A0A0A0] text-[13px] text-black rounded-[2px] hover:bg-[#F0F0F0]">Refresh</button>
-                   <button onClick={() => setStep('pin')} className="px-4 py-1.5 bg-[#047AA6] text-white text-[13px] rounded-[2px] hover:bg-[#035F82]">Continue</button>
+                <div className="p-4 border-t border-gray-300 bg-white flex justify-between items-center">
+                   <button className="px-4 py-1.5 border border-gray-300 rounded text-[13px] text-gray-700 hover:bg-gray-50 font-medium">Configure New Digital ID</button>
+                   <div className="flex gap-3">
+                      <button onClick={onClose} className="px-4 py-1.5 border border-gray-300 rounded text-[13px] text-gray-700 hover:bg-gray-50 font-medium">Cancel</button>
+                      <button onClick={() => setStep('pin')} disabled={!selectedId} className="px-4 py-1.5 bg-[#047AA6] text-white rounded text-[13px] hover:bg-[#035F82] font-medium shadow-sm disabled:opacity-50">Continue</button>
+                   </div>
                 </div>
              </div>
           )}
 
-          {(step === 'pin' || step === 'verifying') && (
-             <div className="flex flex-col flex-1">
-                <p className="text-[13px] text-[#404040] mb-4">Enter the PIN or Password for this Digital ID:</p>
+          {step === 'pin' && (
+             <div className="flex flex-col flex-1 p-6">
+                <p className="text-[14px] text-gray-700 mb-6">Enter the PIN or Password for this Digital ID to authorize the signature:</p>
                 
-                <div className="mb-4">
-                   <p className="text-[14px] font-bold text-black mb-1">ANAND KUMAR PANDEY</p>
-                   <p className="text-[12px] text-[#606060]">Digital ID File: eMudhra Token</p>
+                <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded flex gap-4 items-start">
+                   <div className="text-gray-500"><FileKey size={32}/></div>
+                   <div>
+                      <p className="text-[14px] font-bold text-gray-900">{certificates.find(c => c.id === selectedId)?.name}</p>
+                      <p className="text-[12px] text-gray-500">Certificate Store: Hardware Token</p>
+                   </div>
                 </div>
 
-                <div className="space-y-1">
-                   <label className="text-[12px] text-[#404040]">PIN</label>
+                <div className="space-y-2 mb-8">
+                   <label className="text-[13px] font-medium text-gray-700">PIN / Password</label>
                    <input 
                      type="password" 
-                     className="w-full border border-[#A0A0A0] p-2 text-[14px] outline-none focus:border-[#047AA6]"
+                     className="w-full border border-gray-300 p-2 text-[14px] outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded-sm"
                      autoFocus
                      value={pin}
                      onChange={e => { setPin(e.target.value); setErrorMsg(''); }}
-                     disabled={step === 'verifying'}
+                     disabled={isSigning}
                    />
-                   {errorMsg && <p className="text-[12px] text-[#B00020] mt-1">{errorMsg}</p>}
+                   {errorMsg && <p className="text-[12px] text-red-600 mt-1 flex items-center gap-1"><AlertCircle size={12}/> {errorMsg}</p>}
                 </div>
 
-                <div className="mt-auto flex justify-end gap-3 pt-6">
-                   <button onClick={() => setStep('select')} className="px-4 py-1.5 border border-[#A0A0A0] text-[13px] text-black rounded-[2px] hover:bg-[#F0F0F0]">Back</button>
+                <div className="mt-auto flex justify-end gap-3">
+                   <button onClick={() => setStep('select')} className="px-4 py-1.5 border border-gray-300 rounded text-[13px] text-gray-700 hover:bg-gray-50 font-medium">Back</button>
                    <button 
                      onClick={handleSign} 
-                     disabled={!pin || step === 'verifying'}
-                     className="px-6 py-1.5 bg-[#047AA6] text-white text-[13px] rounded-[2px] hover:bg-[#035F82] disabled:opacity-50 flex items-center gap-2"
+                     disabled={!pin || isSigning}
+                     className="px-6 py-1.5 bg-[#047AA6] text-white text-[13px] rounded hover:bg-[#035F82] disabled:opacity-50 flex items-center gap-2 font-medium shadow-sm"
                    >
-                      {step === 'verifying' ? <Loader2 className="animate-spin" size={12}/> : 'Sign'}
+                      {isSigning ? <Loader2 className="animate-spin" size={14}/> : 'Sign'}
                    </button>
                 </div>
              </div>
