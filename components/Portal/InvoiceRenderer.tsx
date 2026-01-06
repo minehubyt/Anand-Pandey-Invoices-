@@ -14,9 +14,17 @@ interface InvoiceRendererProps {
 export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose, mode = 'invoice' }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   
-  // Secure QR Generation for Display
-  const securePayload = btoa(`AKP_${mode.toUpperCase()}_V1::${data.invoiceNo}::${data.totalAmount}::${data.clientName}`);
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${securePayload}&bgcolor=ffffff`;
+  // --- UPI PAYMENT LOGIC ---
+  // Specific ID: 7541076176@ybl
+  // This constructs a standard UPI string that opens PhonePe/GPay/Paytm when scanned
+  const upiId = "7541076176@ybl";
+  const payeeName = "AK Pandey Associates";
+  const note = `Inv ${data.invoiceNo}`;
+  // Ensure amount is formatted to 2 decimal places for the payment string
+  const upiString = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${data.totalAmount.toFixed(2)}&tn=${encodeURIComponent(note)}&cu=INR`;
+  
+  // Generate QR Image URL using the UPI string
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(upiString)}&bgcolor=ffffff`;
 
   const handlePrint = () => {
     document.title = `${mode === 'receipt' ? 'RECEIPT' : 'INVOICE'}_${data.invoiceNo}`;
@@ -26,10 +34,15 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
   const handleDownloadPDF = async () => {
     setIsGenerating(true);
     try {
-      // Generate the Blob using React-PDF
-      // Explicitly pass the 'type' (mode) so the PDF knows whether to be an Invoice or Receipt
-      const blob = await pdf(<InvoicePDF data={data} type={mode} />).toBlob();
+      // 1. Force the correct mode prop explicitly
+      const doc = <InvoicePDF data={data} type={mode} />;
       
+      // 2. Generate Blob
+      const blob = await pdf(doc).toBlob();
+      
+      if (!blob) throw new Error("PDF Blob generation returned null");
+
+      // 3. Trigger Download
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -38,9 +51,9 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("PDF Generation failed", error);
-      alert("Failed to generate secure PDF document.");
+    } catch (error: any) {
+      console.error("PDF Generation Critical Failure:", error);
+      alert(`Document generation failed. Please try again.\nError: ${error?.message || 'Unknown Protocol Error'}`);
     } finally {
       setIsGenerating(false);
     }
@@ -230,8 +243,9 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
              {/* Bottom Signature & QR Area */}
              <div className="flex justify-between items-end mt-16">
                 <div className="flex flex-col items-center">
-                   <img src={qrUrl} alt="Secure QR" className="w-24 h-24 border border-slate-200 p-1 mb-2" />
-                   <span className="text-[8px] font-bold uppercase tracking-widest text-slate-400">Secure Verification ID</span>
+                   {/* PAYMENT QR CODE */}
+                   <img src={qrUrl} alt="Payment QR" className="w-24 h-24 border border-slate-200 p-1 mb-2" />
+                   <span className="text-[8px] font-bold uppercase tracking-widest text-slate-900 bg-slate-100 px-2 py-1 rounded">Scan to Pay via UPI</span>
                 </div>
 
                 {mode === 'invoice' && (

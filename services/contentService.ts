@@ -15,8 +15,8 @@ import {
 } from "firebase/firestore";
 import { initializeApp, getApp, getApps, deleteApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "../firebase";
+// Removed storage imports as we are switching to Base64 storage
+import { db } from "../firebase";
 import { HeroContent, Insight, Author, OfficeLocation, Inquiry, Job, JobApplication, UserProfile, ClientDocument, PaymentRecord } from '../types';
 
 // Re-declare config for secondary app usage
@@ -157,23 +157,74 @@ export const contentService = {
     }
   },
 
-  // --- STORAGE SERVICE ---
-  uploadImage: async (file: File, folder: string = 'uploads'): Promise<string> => {
-    try {
-      // Create a unique filename
-      const filename = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
-      const storageRef = ref(storage, `${folder}/${filename}`);
+  // --- SMART HIGH-QUALITY COMPRESSION ---
+  uploadImage: async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
       
-      // Upload
-      const snapshot = await uploadBytes(storageRef, file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          // 1. Maintain High Definition (Full HD / 2K) if possible
+          const MAX_WIDTH = 1920; 
+          const MAX_HEIGHT = 1920;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+             reject(new Error("Browser canvas context failed"));
+             return;
+          }
+          
+          // High quality smoothing
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // 2. Iterative Compression to fit Firestore (Limit approx 1MB or 1,048,576 bytes)
+          // We target 950KB to be safe.
+          const SAFETY_LIMIT = 950000;
+          let quality = 0.9; // Start at 90% quality
+          let dataUrl = canvas.toDataURL('image/jpeg', quality);
+          
+          // Loop: Reduce quality by 10% until it fits, but stop at 10% lowest
+          while (dataUrl.length > SAFETY_LIMIT && quality > 0.1) {
+             quality -= 0.1;
+             dataUrl = canvas.toDataURL('image/jpeg', quality);
+          }
+          
+          resolve(dataUrl);
+        };
+        
+        img.onerror = (err) => reject(new Error("Failed to load image for compression"));
+      };
       
-      // Get URL
-      const downloadURL = await getDownloadURL(snapshot.ref);
-      return downloadURL;
-    } catch (error) {
-      console.error("Storage Upload Error:", error);
-      throw new Error("Image upload failed. Please try again.");
-    }
+      reader.onerror = (err) => {
+        console.error("FileReader Error:", err);
+        reject(new Error("Failed to read file"));
+      };
+    });
   },
 
   saveUserProfile: async (profile: UserProfile) => {
@@ -212,10 +263,6 @@ export const contentService = {
       return uid;
 
     } catch (error: any) {
-      // If user already exists (auth/email-already-in-use), we find their UID via the main app (via Firestore lookup usually, but since we can't search Auth, we assume they have a profile).
-      // If we can't find their profile, we can't upgrade them easily without them signing in.
-      // However, for this flow, we will try to find a user profile with this email in Firestore.
-      
       try { await deleteApp(secondaryApp); } catch(e) {} 
 
       if (error.code === 'auth/email-already-in-use') {

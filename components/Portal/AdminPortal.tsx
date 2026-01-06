@@ -739,7 +739,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
            )}
         </div>
 
-        {/* --- GLOBAL INVOICE CREATION --- */}
+        {/* ... (Existing code for creating invoices, client management etc.) ... */}
         {creatingGlobalInvoice && (
             <div className={`p-12 rounded-3xl border shadow-2xl relative mb-12 animate-fade-in ${isDarkMode ? 'bg-[#111216] border-white/5' : 'bg-white border-slate-100'}`}>
                 <div className="flex justify-between items-center mb-12">
@@ -812,7 +812,6 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
                </div>
 
                <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
-                  {/* ... (Existing entity editors for hero, insights, etc. - Unchanged) ... */}
                   {/* HERO EDITOR */}
                   {activeTab === 'hero' && (
                      <div className="lg:col-span-8 space-y-8">
@@ -961,7 +960,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
            </div>
         )}
 
-        {/* --- CLIENT MANAGER (CRM) --- */}
+        {/* ... (Client Manager Section Unchanged) ... */}
         {managingClient && (
            <div className={`p-10 rounded-3xl border shadow-2xl relative animate-fade-in ${isDarkMode ? 'bg-[#111216] border-white/5' : 'bg-white border-slate-100'}`}>
               <button onClick={() => setManagingClient(null)} className="absolute top-8 right-8 p-2 bg-slate-100 rounded-full hover:bg-slate-200"><X size={20}/></button>
@@ -1142,18 +1141,19 @@ const InputField = ({ label, value, onChange, isDark, icon, type = "text", place
 
 const FileUploader = ({ label, value, onChange, icon }: any) => {
   const [uploading, setUploading] = useState(false);
+  const [useUrl, setUseUrl] = useState(false); // Mode toggle: true = URL input, false = File Upload
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setUploading(true);
       try {
-        // Use the new uploadImage service for unlimited size cloud storage
-        const url = await contentService.uploadImage(file, 'banners');
+        // Use smart iterative compression service
+        const url = await contentService.uploadImage(file);
         onChange(url);
-      } catch (error) {
-        alert("Failed to upload image. Please try again.");
-        console.error(error);
+      } catch (error: any) {
+        console.error("Upload Error:", error);
+        alert(`Failed to process image. Please try again with a standard format (JPG/PNG). Error: ${error.message}`);
       } finally {
         setUploading(false);
       }
@@ -1162,25 +1162,63 @@ const FileUploader = ({ label, value, onChange, icon }: any) => {
 
   return (
     <div className="space-y-4">
-      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{label}</label>
-      <div className="flex items-center gap-4">
-         <div className="flex-1 p-4 bg-slate-100 rounded-xl text-slate-400 text-xs overflow-hidden truncate flex items-center justify-between">
-            <span>{value ? 'Image Uploaded' : 'No file chosen'}</span>
-            {value && <img src={value} alt="Preview" className="h-8 w-8 object-cover rounded ml-2" />}
+      <div className="flex justify-between items-center">
+         <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{label}</label>
+         <div className="flex gap-2">
+            <button 
+               onClick={() => setUseUrl(false)} 
+               className={`text-[9px] font-bold uppercase px-3 py-1 rounded transition-colors ${!useUrl ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-400'}`}
+            >
+               Upload File
+            </button>
+            <button 
+               onClick={() => setUseUrl(true)} 
+               className={`text-[9px] font-bold uppercase px-3 py-1 rounded transition-colors ${useUrl ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-400'}`}
+            >
+               Image URL
+            </button>
          </div>
-         <label className={`px-6 py-4 bg-slate-900 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest cursor-pointer hover:bg-[#CC1414] transition-all flex items-center gap-2 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
-            {uploading ? <Loader2 className="animate-spin" size={16}/> : icon} 
-            {uploading ? 'Uploading...' : 'Choose High-Res'}
-            <input 
-              type="file" 
-              className="hidden" 
-              disabled={uploading}
-              accept="image/*"
-              onChange={handleFileChange}
-            />
-         </label>
       </div>
-      {value && <p className="text-[9px] text-green-600 font-bold uppercase tracking-widest">High-Definition Asset Ready</p>}
+
+      {useUrl ? (
+         <div className="flex items-center gap-4">
+            <div className="flex-1">
+               <input 
+                  type="text" 
+                  value={value && value.startsWith('http') ? value : ''} 
+                  onChange={(e) => onChange(e.target.value)}
+                  placeholder="Paste direct image link (e.g. https://images.unsplash.com/...)"
+                  className="w-full p-4 border rounded-xl focus:outline-none focus:ring-1 focus:ring-[#CC1414] font-light text-sm bg-slate-50 border-slate-200"
+               />
+            </div>
+            {value && <img src={value} alt="Preview" className="h-12 w-12 object-cover rounded-lg border border-slate-200" />}
+         </div>
+      ) : (
+         <div className="flex items-center gap-4">
+            <div className="flex-1 p-4 bg-slate-100 rounded-xl text-slate-400 text-xs overflow-hidden truncate flex items-center justify-between">
+               <span>{value ? (value.startsWith('data:') ? 'Image Compressed & Ready' : 'External Image Linked') : 'No file chosen'}</span>
+               {value && <img src={value} alt="Preview" className="h-8 w-8 object-cover rounded ml-2" />}
+            </div>
+            <label className={`px-6 py-4 bg-slate-900 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest cursor-pointer hover:bg-[#CC1414] transition-all flex items-center gap-2 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+               {uploading ? <Loader2 className="animate-spin" size={16}/> : icon} 
+               {uploading ? 'Processing...' : 'Choose File'}
+               <input 
+               type="file" 
+               className="hidden" 
+               disabled={uploading}
+               accept="image/*"
+               onChange={handleFileChange}
+               />
+            </label>
+         </div>
+      )}
+      
+      {value && (
+         <p className="text-[9px] text-green-600 font-bold uppercase tracking-widest flex items-center gap-1">
+            <CheckCircle size={10}/> 
+            {useUrl ? 'Direct Link Active (Best Quality)' : 'Optimized for Database Storage'}
+         </p>
+      )}
     </div>
   );
 };

@@ -3,8 +3,8 @@ import React from 'react';
 import { Page, Text, View, Document, StyleSheet, Image } from '@react-pdf/renderer';
 import { InvoiceDetails } from '../../types';
 
-// Standard PDF fonts: Helvetica (Sans) and Times-Roman (Serif)
-// STRICT COLOR RULE: #000000 for everything except Logo.
+// Standard PDF fonts: Helvetica (Sans) matches the Portal's "Inter/Sans" look better than Times.
+// COLOR RULE: #000000 for everything. #A6192E for Logo.
 
 const styles = StyleSheet.create({
   page: {
@@ -12,7 +12,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Helvetica',
     fontSize: 10,
     lineHeight: 1.5,
-    color: '#000000', // Global black
+    color: '#000000', // Pure Black
   },
   // --- Header ---
   headerContainer: {
@@ -28,23 +28,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 5,
   },
+  // MATCHING PORTAL LOGO EXACTLY: Sans-Serif (Helvetica-Bold), Red, Wide Spacing
   logoMain: {
-    fontSize: 20,
-    fontFamily: 'Times-Bold', 
-    letterSpacing: 2,
-    color: '#A6192E', // ONLY EXCEPTION: Brand Red
+    fontSize: 18,
+    fontFamily: 'Helvetica-Bold', 
+    letterSpacing: 3,
+    color: '#A6192E', // Brand Red
     textTransform: 'uppercase',
   },
   logoAmp: {
-    fontSize: 14,
-    fontFamily: 'Times-Roman',
-    color: '#A6192E', // ONLY EXCEPTION: Brand Red
-    marginHorizontal: 5,
+    fontSize: 12,
+    fontFamily: 'Helvetica',
+    color: '#A6192E', // Brand Red
+    marginHorizontal: 4,
+    marginTop: 2,
   },
   companyDetails: {
     textAlign: 'right',
     fontSize: 9,
-    color: '#000000', // Black
+    color: '#000000',
   },
   companyNameBold: {
     fontFamily: 'Helvetica-Bold',
@@ -125,8 +127,8 @@ const styles = StyleSheet.create({
   },
   tableHeader: {
     flexDirection: 'row',
-    borderTopWidth: 2, // Thick top line
-    borderBottomWidth: 2, // Thick bottom line
+    borderTopWidth: 1.5, // Strong Black Line
+    borderBottomWidth: 1.5, // Strong Black Line
     borderTopColor: '#000000',
     borderBottomColor: '#000000',
     paddingVertical: 8,
@@ -135,7 +137,7 @@ const styles = StyleSheet.create({
   tableRow: {
     flexDirection: 'row',
     paddingVertical: 10,
-    borderBottomWidth: 0.5, // Thin separator line
+    borderBottomWidth: 0.5,
     borderBottomColor: '#000000',
   },
   colNo: {
@@ -176,31 +178,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderBottomWidth: 2, // Thick line below total
+    borderBottomWidth: 2, // Double Line Effect (Simulated with thick border)
     borderBottomColor: '#000000',
     paddingVertical: 12,
   },
   totalLabel: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: 'Helvetica-Bold',
     color: '#000000',
     textAlign: 'right',
     flex: 1,
     paddingRight: 20,
+    textTransform: 'uppercase'
   },
   totalValue: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: 'Helvetica-Bold',
     color: '#000000',
     textAlign: 'right',
-    width: '25%', // Matches colAmount width
+    width: '25%', 
   },
 
   // --- Words Section ---
   amountWordsSection: {
     marginTop: 20,
     marginBottom: 40,
-    borderBottomWidth: 1.5,
+    borderBottomWidth: 1,
     borderBottomColor: '#000000',
     paddingBottom: 10,
   },
@@ -238,13 +241,35 @@ const styles = StyleSheet.create({
   },
 
   // --- Signature ---
-  signatureContainer: {
+  footerSection: {
     marginTop: 40,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+  },
+  qrContainer: {
+    flexDirection: 'column',
+    alignItems: 'center',
+  },
+  qrImage: {
+    width: 70,
+    height: 70,
+    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  qrLabel: {
+    fontSize: 7,
+    fontFamily: 'Helvetica-Bold',
+    textTransform: 'uppercase',
+    color: '#000000',
+  },
+  signatureContainer: {
     alignSelf: 'flex-end',
     textAlign: 'right',
   },
   signText: {
-    fontFamily: 'Times-Italic',
+    fontFamily: 'Helvetica-Oblique', // Italic Sans
     fontSize: 9,
     color: '#000000',
     marginBottom: 30,
@@ -263,15 +288,20 @@ interface InvoicePDFProps {
 }
 
 export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data, type = 'invoice' }) => {
-  // STRICTLY use the 'type' prop to decide layout. 
-  // This allows printing an original invoice even if payment is already recorded.
   const isReceipt = type === 'receipt';
   
+  // UPI PAYMENT QR LOGIC
+  const upiId = "7541076176@ybl";
+  const payeeName = "AK Pandey Associates";
+  const note = `Inv ${data.invoiceNo}`;
+  const upiString = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${data.totalAmount.toFixed(2)}&tn=${encodeURIComponent(note)}&cu=INR`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(upiString)}&bgcolor=ffffff`;
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
         
-        {/* Header */}
+        {/* Header - Portal Logo Replica */}
         <View style={styles.headerContainer}>
           <View style={styles.logoContainer}>
             <View style={styles.logoTextRow}>
@@ -289,14 +319,14 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data, type = 'invoice' }
           </View>
         </View>
 
-        {/* Title */}
+        {/* Title Block */}
         <View style={{ marginBottom: 20, borderBottomWidth: 1, borderBottomColor: '#000000', paddingBottom: 5 }}>
-           <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 14, textTransform: 'uppercase' }}>
+           <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 14, textTransform: 'uppercase', color: '#000000' }}>
               {isReceipt ? 'PAYMENT RECEIPT' : 'PROFESSIONAL FEE INVOICE'}
            </Text>
         </View>
 
-        {/* Receipt Details Box */}
+        {/* Receipt Details Box (Only for Receipts) */}
         {isReceipt && data.payment && (
            <View style={styles.paymentBox}>
               <View style={styles.paymentItem}>
@@ -347,7 +377,7 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data, type = 'invoice' }
 
         {/* Receipt Acknowledgement Text */}
         {isReceipt && (
-           <Text style={{ fontFamily: 'Times-Italic', fontSize: 10, marginBottom: 20 }}>
+           <Text style={{ fontFamily: 'Helvetica-Oblique', fontSize: 10, marginBottom: 20, color: '#000000' }}>
               Received with thanks from {data.clientName} a sum of INR {data.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })} towards full and final settlement.
            </Text>
         )}
@@ -369,7 +399,7 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data, type = 'invoice' }
            ))}
         </View>
 
-        {/* Total Section with Lines */}
+        {/* Total Section */}
         <View style={styles.totalSection}>
            <View style={styles.totalContainer}>
               <Text style={styles.totalLabel}>{isReceipt ? 'Amount Received' : 'Gross Amount'}</Text>
@@ -386,7 +416,7 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data, type = 'invoice' }
         <View style={styles.termsContainer}>
            <Text style={styles.termsTitle}>{isReceipt ? 'PAYMENT ACKNOWLEDGEMENT' : 'TERMS AND CONDITIONS'}</Text>
            {isReceipt ? (
-              <Text style={{ fontSize: 9 }}>
+              <Text style={{ fontSize: 9, color: '#000000' }}>
                  This receipt is computer generated and valid without signature. The payment has been credited to AK Pandey & Associates.
               </Text>
            ) : (
@@ -399,14 +429,24 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data, type = 'invoice' }
            )}
         </View>
 
-        {/* Signature - ONLY FOR INVOICES */}
-        {!isReceipt && (
-           <View style={styles.signatureContainer}>
-              <Text style={styles.signText}>This document is digitally signed</Text>
-              <Text style={styles.signAuth}>FOR AK PANDEY & ASSOCIATES</Text>
-              <Text style={{ fontSize: 9, color: '#64748B', marginTop: 2 }}>Authorized Signatory</Text>
+        {/* Footer Area with QR & Signature */}
+        <View style={styles.footerSection}>
+           
+           {/* Functional Payment QR Code */}
+           <View style={styles.qrContainer}>
+              <Image style={styles.qrImage} src={qrUrl} />
+              <Text style={styles.qrLabel}>Scan to Pay via UPI</Text>
            </View>
-        )}
+
+           {/* Signature - ONLY FOR INVOICES */}
+           {!isReceipt && (
+              <View style={styles.signatureContainer}>
+                 <Text style={styles.signText}>This document is digitally signed</Text>
+                 <Text style={styles.signAuth}>FOR AK PANDEY & ASSOCIATES</Text>
+                 <Text style={{ fontSize: 9, color: '#000000', marginTop: 2 }}>Authorized Signatory</Text>
+              </View>
+           )}
+        </View>
 
       </Page>
     </Document>
