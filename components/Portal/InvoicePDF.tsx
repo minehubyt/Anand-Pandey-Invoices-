@@ -441,7 +441,7 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data, type = 'invoice' }
         <View style={styles.termsAndQrContainer}>
            
            {/* Terms Column */}
-           <View style={styles.termsColumn}>
+           <View style={isReceipt ? {width: '100%'} : styles.termsColumn}>
               <Text style={styles.termsTitle}>{isReceipt ? 'PAYMENT ACKNOWLEDGEMENT' : 'TERMS AND CONDITIONS'}</Text>
               {isReceipt ? (
                  <Text style={{ fontSize: 8, color: '#000000' }}>
@@ -461,13 +461,15 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data, type = 'invoice' }
               )}
            </View>
 
-           {/* QR Column */}
-           <View style={styles.qrColumn}>
-              <Image style={styles.qrImage} src={qrUrl} />
-              <Text style={styles.qrLabel}>SCAN TO PAY VIA UPI</Text>
-              <Text style={styles.qrSubLabel}>GPay • PhonePe • Paytm</Text>
-              <Text style={{ fontSize: 6, fontFamily: 'Helvetica', color: '#999', marginTop: 1 }}>{upiId}</Text>
-           </View>
+           {/* QR Column - ONLY FOR INVOICES */}
+           {!isReceipt && (
+               <View style={styles.qrColumn}>
+                  <Image style={styles.qrImage} src={qrUrl} />
+                  <Text style={styles.qrLabel}>SCAN TO PAY VIA UPI</Text>
+                  <Text style={styles.qrSubLabel}>GPay • PhonePe • Paytm</Text>
+                  <Text style={{ fontSize: 6, fontFamily: 'Helvetica', color: '#999', marginTop: 1 }}>{upiId}</Text>
+               </View>
+           )}
 
         </View>
 

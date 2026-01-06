@@ -240,20 +240,22 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
                )}
              </div>
 
-             {/* Right Column: QR Code (Beside Terms) */}
-             <div className="flex flex-col items-center shrink-0">
-                <div className="relative group">
-                   <img src={qrUrl} alt="Payment QR" className="w-40 h-40 border border-slate-200 p-1 mb-2" />
-                   <div className="absolute -inset-1 border border-dashed border-slate-300 rounded-sm pointer-events-none opacity-50"></div>
-                </div>
-                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-900 mt-1">Scan to Pay</span>
-                <span className="text-[8px] text-slate-500 font-mono mb-1">{upiId}</span>
-                <div className="flex items-center gap-2 opacity-70 mt-1">
-                   <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide border px-1 rounded">GPay</span>
-                   <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide border px-1 rounded">PhonePe</span>
-                   <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide border px-1 rounded">Paytm</span>
-                </div>
-             </div>
+             {/* Right Column: QR Code (Beside Terms) - ONLY FOR INVOICE */}
+             {mode === 'invoice' && (
+               <div className="flex flex-col items-center shrink-0">
+                  <div className="relative group">
+                     <img src={qrUrl} alt="Payment QR" className="w-40 h-40 border border-slate-200 p-1 mb-2" />
+                     <div className="absolute -inset-1 border border-dashed border-slate-300 rounded-sm pointer-events-none opacity-50"></div>
+                  </div>
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-slate-900 mt-1">Scan to Pay</span>
+                  <span className="text-[8px] text-slate-500 font-mono mb-1">{upiId}</span>
+                  <div className="flex items-center gap-2 opacity-70 mt-1">
+                     <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide border px-1 rounded">GPay</span>
+                     <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide border px-1 rounded">PhonePe</span>
+                     <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide border px-1 rounded">Paytm</span>
+                  </div>
+               </div>
+             )}
 
           </div>
 
