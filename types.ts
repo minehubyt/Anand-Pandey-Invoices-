@@ -152,6 +152,7 @@ export interface ClientDocument {
   amount?: string; // For invoices
   status?: 'Paid' | 'Pending' | 'Overdue'; // For invoices
   invoiceDetails?: InvoiceDetails;
+  archived?: boolean; // For Financial Year Resets
 }
 
 export interface UserProfile {

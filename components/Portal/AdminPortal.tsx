@@ -10,7 +10,7 @@ import {
   Sun, Moon, ChevronRight, Download, Link, ExternalLink,
   Heading1, Heading2, AlignLeft, Type, FileUp, Music, Database,
   Linkedin, MessageCircle, Mail, BookOpen, Star, Palette, List, Maximize2, Monitor,
-  UserCheck, GraduationCap, Eye, Loader2, AlertTriangle, Crown, FilePlus, Receipt, CreditCard, Banknote, DollarSign, TrendingUp, AlertCircle, PenTool, Usb, Lock, KeyRound
+  UserCheck, GraduationCap, Eye, Loader2, AlertTriangle, Crown, FilePlus, Receipt, CreditCard, Banknote, DollarSign, TrendingUp, AlertCircle, PenTool, Usb, Lock, KeyRound, HardDrive
 } from 'lucide-react';
 import { pdf } from '@react-pdf/renderer';
 import { contentService } from '../../services/contentService';
@@ -178,12 +178,13 @@ const EditorModal: React.FC<{
   );
 };
 
-// --- DSC SIGNING MODAL SIMULATION ---
+// --- DSC SIGNING MODAL (emSigner Style) ---
 const DSCSigningModal: React.FC<{
   onClose: () => void;
   onSign: (details: any) => void;
 }> = ({ onClose, onSign }) => {
-  const [step, setStep] = useState<'detect' | 'select' | 'pin' | 'signing'>('detect');
+  const [step, setStep] = useState<'driver' | 'detect' | 'select' | 'pin' | 'signing'>('driver');
+  const [selectedToken, setSelectedToken] = useState('HYP2003');
   const [selectedCert, setSelectedCert] = useState<string | null>(null);
   const [pin, setPin] = useState('');
   
@@ -193,115 +194,161 @@ const DSCSigningModal: React.FC<{
     { id: 'c2', name: 'AK PANDEY & ASSOCIATES', issuer: 'Vsign CA 2014', validTo: '2025-11-15', serial: '88491022' }
   ];
 
+  const handleDriverSelect = () => {
+      setStep('detect');
+      setTimeout(() => setStep('select'), 2000); // Simulate Detection
+  };
+
   useEffect(() => {
-    if (step === 'detect') {
-      const timer = setTimeout(() => setStep('select'), 2500); // Simulate scanning delay
-      return () => clearTimeout(timer);
-    }
     if (step === 'signing') {
       const timer = setTimeout(() => {
         const cert = certs.find(c => c.id === selectedCert);
         onSign(cert);
-      }, 2000);
+      }, 3000);
       return () => clearTimeout(timer);
     }
   }, [step, selectedCert]);
 
   return (
     <div className="fixed inset-0 z-[300] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl animate-reveal-up overflow-hidden">
+      <div className="bg-[#EBEBEB] rounded-sm w-full max-w-lg shadow-2xl animate-reveal-up overflow-hidden border border-slate-400">
         
-        {/* Header */}
-        <div className="bg-slate-50 p-6 border-b border-slate-100 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-             <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Usb size={20}/></div>
-             <h3 className="text-lg font-bold text-slate-900 font-sans tracking-tight">DSC Token Interface</h3>
+        {/* Official Header Style */}
+        <div className="bg-gradient-to-r from-slate-200 to-white p-3 border-b border-slate-300 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+             <ShieldCheck size={18} className="text-green-700"/>
+             <h3 className="text-sm font-bold text-slate-700 font-sans tracking-tight">emSigner Gateway | v2.6.1</h3>
           </div>
-          <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-red-500"/></button>
+          <button onClick={onClose}><X size={16} className="text-slate-500 hover:text-red-600"/></button>
         </div>
 
-        {/* Content */}
-        <div className="p-8">
+        {/* Content Area */}
+        <div className="p-6 bg-white min-h-[300px] flex flex-col">
           
+          {/* STEP 1: DRIVER SELECTION */}
+          {step === 'driver' && (
+             <div className="flex-1 flex flex-col justify-center space-y-6">
+                <div className="text-center">
+                   <HardDrive className="mx-auto text-slate-400 mb-4" size={48} />
+                   <h4 className="text-lg font-bold text-slate-800">Select Crypto Token</h4>
+                   <p className="text-xs text-slate-500 mt-1">Choose the active hardware token connected to this system.</p>
+                </div>
+                
+                <div className="space-y-2">
+                   <label className="text-[10px] font-bold text-slate-500 uppercase">Token Driver</label>
+                   <select 
+                     value={selectedToken}
+                     onChange={(e) => setSelectedToken(e.target.value)}
+                     className="w-full p-2 border border-slate-300 rounded bg-slate-50 text-sm focus:border-blue-500 outline-none"
+                   >
+                      <option value="HYP2003">HYP2003 (ePass2003)</option>
+                      <option value="PROXKEY">Watchdata ProxKey</option>
+                      <option value="TRUSTKEY">TrustKey Token</option>
+                      <option value="MOSERBAER">MoserBaer (Old)</option>
+                   </select>
+                </div>
+
+                <button onClick={handleDriverSelect} className="w-full py-2 bg-blue-600 text-white text-sm font-bold rounded shadow-sm hover:bg-blue-700">
+                   Initialize Token
+                </button>
+             </div>
+          )}
+
+          {/* STEP 2: DETECTING */}
           {step === 'detect' && (
-            <div className="text-center py-8">
-               <Loader2 className="w-12 h-12 text-[#CC1414] animate-spin mx-auto mb-6" />
-               <h4 className="text-xl font-serif text-slate-900 mb-2">Detecting Hardware Token...</h4>
-               <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Scanning for HYP2003 / ePass2003</p>
+            <div className="flex-1 flex flex-col justify-center items-center">
+               <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
+               <h4 className="text-sm font-bold text-slate-800">Reading Token...</h4>
+               <p className="text-xs text-slate-500 mt-2 font-mono">Loading certificates from {selectedToken}...</p>
             </div>
           )}
 
+          {/* STEP 3: CERTIFICATE SELECTION */}
           {step === 'select' && (
-            <div className="space-y-6">
-               <div className="flex items-center gap-2 mb-2">
-                  <CheckCircle className="w-4 h-4 text-green-500" />
-                  <span className="text-xs font-bold uppercase tracking-widest text-slate-500">HYP2003 Token Detected</span>
+            <div className="space-y-4">
+               <div className="bg-yellow-50 border border-yellow-200 p-3 flex gap-2 items-center rounded-sm">
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                  <span className="text-xs font-bold text-slate-700">Token Active: {selectedToken}</span>
                </div>
-               <p className="text-sm text-slate-900 font-medium">Select a certificate to sign this invoice:</p>
-               <div className="space-y-3">
+               
+               <p className="text-sm font-bold text-slate-800">Select Certificate to Sign:</p>
+               
+               <div className="border border-slate-300 h-40 overflow-y-auto bg-slate-50 rounded-sm">
                   {certs.map(cert => (
-                    <button 
+                    <div 
                       key={cert.id}
                       onClick={() => setSelectedCert(cert.id)}
-                      className={`w-full text-left p-4 rounded-xl border transition-all ${selectedCert === cert.id ? 'border-[#CC1414] bg-[#CC1414]/5 ring-1 ring-[#CC1414]' : 'border-slate-200 hover:border-slate-400'}`}
+                      className={`p-3 border-b border-slate-200 cursor-pointer hover:bg-blue-50 flex gap-3 ${selectedCert === cert.id ? 'bg-blue-100' : ''}`}
                     >
-                       <div className="flex items-start gap-3">
-                          <ShieldCheck size={20} className={selectedCert === cert.id ? 'text-[#CC1414]' : 'text-slate-400'} />
-                          <div>
-                             <p className="font-bold text-slate-900 text-sm">{cert.name}</p>
-                             <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-wider">Issued by: {cert.issuer}</p>
-                             <p className="text-[10px] text-slate-400 mt-0.5">Exp: {cert.validTo}</p>
-                          </div>
+                       <ShieldCheck size={16} className="text-green-600 mt-1" />
+                       <div>
+                          <p className="text-sm font-bold text-slate-800">{cert.name}</p>
+                          <p className="text-[10px] text-slate-500">Issuer: {cert.issuer}</p>
+                          <p className="text-[10px] text-slate-500">Exp: {cert.validTo} • Serial: {cert.serial}</p>
                        </div>
-                    </button>
+                    </div>
                   ))}
                </div>
-               <button 
-                 disabled={!selectedCert}
-                 onClick={() => setStep('pin')}
-                 className="w-full py-3 bg-slate-900 text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-[#CC1414] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-               >
-                 Proceed to PIN
-               </button>
+
+               <div className="flex justify-end gap-2 pt-2">
+                  <button onClick={() => setStep('driver')} className="px-4 py-2 border border-slate-300 text-xs font-bold text-slate-600 rounded hover:bg-slate-100">Back</button>
+                  <button 
+                    disabled={!selectedCert}
+                    onClick={() => setStep('pin')}
+                    className="px-6 py-2 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    Sign Document
+                  </button>
+               </div>
             </div>
           )}
 
+          {/* STEP 4: PIN ENTRY */}
           {step === 'pin' && (
-             <div className="space-y-6">
-                <div className="text-center mb-6">
-                   <Lock size={40} className="mx-auto text-slate-300 mb-4" />
-                   <h4 className="text-lg font-serif">Enter Token PIN</h4>
-                   <p className="text-xs text-slate-400">Authorize access to the selected private key.</p>
+             <div className="flex-1 flex flex-col justify-center space-y-6">
+                <div className="text-center">
+                   <Lock size={32} className="mx-auto text-slate-400 mb-4" />
+                   <h4 className="text-sm font-bold text-slate-800">User Authentication</h4>
+                   <p className="text-xs text-slate-500 mt-1">Please enter your Digital Signature PIN.</p>
                 </div>
-                <div className="relative">
-                   <KeyRound size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"/>
+                
+                <div className="max-w-[200px] mx-auto w-full">
                    <input 
                      type="password" 
                      autoFocus
                      value={pin}
                      onChange={e => setPin(e.target.value)}
-                     className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#CC1414] focus:outline-none text-slate-900"
-                     placeholder="Token PIN"
+                     className="w-full p-2 border border-slate-300 rounded text-center tracking-widest text-lg focus:border-blue-500 outline-none"
+                     placeholder="****"
                    />
                 </div>
+
                 <button 
                  disabled={pin.length < 4}
                  onClick={() => setStep('signing')}
-                 className="w-full py-3 bg-[#CC1414] text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-slate-900 transition-all disabled:opacity-50"
+                 className="w-full py-2 bg-green-600 text-white text-sm font-bold rounded shadow-sm hover:bg-green-700 disabled:opacity-50"
                >
-                 Sign Document
+                 Verify & Sign
                </button>
              </div>
           )}
 
+          {/* STEP 5: SIGNING */}
           {step === 'signing' && (
-             <div className="text-center py-8">
-                <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-6" />
-                <h4 className="text-xl font-serif text-slate-900 mb-2">Cryptographic Signing...</h4>
-                <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Embedding Digital Signature</p>
+             <div className="flex-1 flex flex-col justify-center items-center">
+                <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden mb-4 max-w-[200px]">
+                   <div className="h-full bg-blue-600 animate-progress w-full origin-left"></div>
+                </div>
+                <h4 className="text-sm font-bold text-slate-800">Hashing Document...</h4>
+                <p className="text-xs text-slate-500 mt-1 font-mono">Embedding SHA-256 Signature Block...</p>
              </div>
           )}
 
+        </div>
+        
+        {/* Footer */}
+        <div className="bg-slate-100 p-2 border-t border-slate-300 text-center">
+           <p className="text-[10px] text-slate-400">Powered by CCA India Root Authority 2014 | 2048-bit RSA Encryption</p>
         </div>
       </div>
     </div>
@@ -383,23 +430,27 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
   const financeStats = useMemo(() => {
     let revenue = 0;
     let pending = 0;
+    let count = 0;
     allInvoices.forEach(inv => {
+        // Skip archived invoices from current stats
+        if (inv.archived) return;
+
         const amount = inv.invoiceDetails?.totalAmount || 0;
         if (inv.status === 'Paid') revenue += amount;
         else pending += amount;
+        count++;
     });
     return {
         revenue,
         pending,
-        count: allInvoices.length
+        count
     };
   }, [allInvoices]);
 
   // --- SMART INVOICE NUMBERING ---
   const getNextInvoiceNumber = (forceReset = false) => {
     const currentYear = new Date().getFullYear();
-    if (forceReset) return `INV-${currentYear}-001`;
-
+    // Force reset logic handled separately now, but standard numbering looks at existing invoices
     const pattern = new RegExp(`INV-${currentYear}-(\\d+)`);
     let maxSeq = 0;
 
@@ -504,6 +555,29 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
     setIsEditing(true);
   };
 
+  // --- END FINANCIAL YEAR LOGIC ---
+  const handleEndFinancialYear = async () => {
+      if (!confirm("CONFIRM FINANCIAL YEAR CLOSURE?\n\nThis action will archive all current invoices and reset revenue statistics to zero. A new financial period will begin immediately.\n\nThis action cannot be undone.")) return;
+
+      setIsSaving(true);
+      try {
+          // Identify active invoices
+          const activeInvoices = allInvoices.filter(i => !i.archived && i.type === 'invoice');
+          
+          // Archive them individually (simulated batch)
+          for (const inv of activeInvoices) {
+              await contentService.updateDocumentStatus(inv.id, inv.status || 'Pending', undefined, true);
+          }
+          
+          alert("Financial Year Successfully Closed. Revenue metrics reset.");
+      } catch (e: any) {
+          console.error(e);
+          alert("Error closing books: " + e.message);
+      } finally {
+          setIsSaving(false);
+      }
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
@@ -596,7 +670,8 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
         date: invoiceForm.date,
         status: 'Pending',
         amount: `₹${total.toLocaleString()}`,
-        invoiceDetails: finalInvoice
+        invoiceDetails: finalInvoice,
+        archived: false // Explicitly not archived
      });
 
      try {
@@ -837,7 +912,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
             <div>
                <div className="flex items-center justify-between mb-1">
                   <label className="text-[10px] font-bold uppercase text-slate-400">Invoice No</label>
-                  <button onClick={() => setInvoiceForm(prev => ({...prev, invoiceNo: getNextInvoiceNumber(true)}))} className="text-[9px] font-bold text-blue-600 hover:text-blue-800 uppercase flex items-center gap-1"><RefreshCw size={10}/> Reset FY</button>
+                  {/* Removed Reset FY Button from here as per request */}
                </div>
                <input value={invoiceForm.invoiceNo} onChange={e => setInvoiceForm({...invoiceForm, invoiceNo: e.target.value})} placeholder="Invoice No" className="w-full p-3 border rounded-xl text-sm" />
             </div>
@@ -913,6 +988,17 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
 
   const renderFinanceTable = () => (
     <div className="space-y-8">
+        {/* Finance Header - Added End FY Button here */}
+        <div className="flex justify-between items-end">
+            <h3 className="text-xl font-serif text-slate-900">Financial Overview</h3>
+            <button 
+                onClick={handleEndFinancialYear}
+                className="px-6 py-3 bg-white border border-red-200 text-red-600 text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-red-50 transition-all flex items-center gap-2"
+            >
+                <AlertCircle size={14}/> Close Financial Year
+            </button>
+        </div>
+
         {/* Finance Stats */}
         <div className="grid grid-cols-3 gap-6">
             <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
@@ -932,7 +1018,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
             <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
                 <div className="p-3 bg-blue-50 text-blue-600 rounded-xl"><Receipt size={24}/></div>
                 <div>
-                    <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Total Invoices</p>
+                    <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Current Invoices</p>
                     <p className="text-2xl font-serif font-bold text-slate-900">{financeStats.count}</p>
                 </div>
             </div>
@@ -951,10 +1037,10 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
                 </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-                {allInvoices.length === 0 ? (
-                    <tr><td colSpan={6} className="p-8 text-center text-slate-400 italic">No invoices found.</td></tr>
+                {allInvoices.filter(i => !i.archived).length === 0 ? (
+                    <tr><td colSpan={6} className="p-8 text-center text-slate-400 italic">No active financial records found.</td></tr>
                 ) : (
-                    allInvoices.map(inv => (
+                    allInvoices.filter(i => !i.archived).map(inv => (
                     <tr key={inv.id} className="hover:bg-slate-50 transition-colors group">
                         <td className="p-6 text-sm font-bold text-slate-700">{inv.title.replace('Invoice ', '')}</td>
                         <td className="p-6 text-sm text-slate-500">{new Date(inv.date).toLocaleDateString()}</td>
@@ -999,6 +1085,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
     </div>
   );
 
+  // ... (Rest of AdminPortal component remains mostly unchanged, just omitting renderInquiriesTable and renderApplicationsTable for brevity in this response block as they are unchanged) ...
   const renderApplicationsTable = () => (
     <div className="bg-white border border-slate-100 rounded-3xl overflow-hidden shadow-sm">
       <table className="w-full text-left border-collapse">

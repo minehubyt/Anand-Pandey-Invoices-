@@ -52,6 +52,19 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
     }
   };
 
+  // Date formatter for DSC style
+  const dscDate = data.digitalSignature 
+    ? new Date(data.digitalSignature.timestamp).toLocaleString('en-GB', { 
+        year: 'numeric', 
+        month: '2-digit', 
+        day: '2-digit', 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit',
+        hour12: false
+      }).replace(',', '') + ' +05:30'
+    : '';
+
   return (
     <div className="fixed inset-0 z-[200] bg-slate-900/90 backdrop-blur-sm flex justify-center overflow-y-auto py-8 px-4 print:p-0 print:bg-white print:fixed print:inset-0">
       <div className="bg-white w-full max-w-[210mm] shadow-2xl relative min-h-[297mm] flex flex-col h-fit animate-reveal-up print:shadow-none print:w-full print:max-w-none print:h-full print:animate-none">
@@ -265,15 +278,16 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
                 <div className="text-left">
                    
                    {data.digitalSignature ? (
-                      <div className="mb-4 p-2 border border-black bg-white inline-block">
-                         <div className="flex items-center gap-2 mb-1">
-                            <ShieldCheck size={12} className="text-black" />
-                            <p className="font-bold text-[8px] uppercase text-black">Digitally Signed By</p>
+                      <div className="relative mt-2 mb-2 p-1 inline-block">
+                         <div className="text-sm font-sans text-black leading-tight">Signature valid</div>
+                         <div className="text-[9px] font-sans text-black leading-tight">Digitally signed by {data.digitalSignature.signatoryName}</div>
+                         <div className="text-[9px] font-sans text-black leading-tight">Date: {dscDate}</div>
+                         <div className="text-[9px] font-sans text-black leading-tight">Location: Ranchi</div>
+                         
+                         {/* Checkmark overlay */}
+                         <div className="absolute top-1 left-24 opacity-80 pointer-events-none">
+                            <CheckCircle size={32} className="text-green-600" strokeWidth={3} />
                          </div>
-                         <p className="font-bold text-[10px] text-black mb-1">{data.digitalSignature.signatoryName}</p>
-                         <p className="text-[8px] text-black">Date: {new Date(data.digitalSignature.timestamp).toLocaleString()}</p>
-                         <p className="text-[8px] text-black">Reason: Auth Signatory</p>
-                         <p className="text-[8px] text-black">Location: New Delhi</p>
                       </div>
                    ) : (
                       data.signatureImage && (

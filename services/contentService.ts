@@ -305,7 +305,7 @@ export const contentService = {
   subscribeClientDocuments: (userId: string, callback: (docs: ClientDocument[]) => void) => {
     return onSnapshot(collection(db, COLLECTIONS.DOCUMENTS), (snapshot) => {
       const allDocs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ClientDocument));
-      const clientDocs = allDocs.filter(d => d.userId === userId);
+      const clientDocs = allDocs.filter(d => d.userId === userId && !d.archived); // Filter archived
       clientDocs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       callback(clientDocs);
     });
@@ -315,7 +315,7 @@ export const contentService = {
   subscribeAllInvoices: (callback: (docs: ClientDocument[]) => void) => {
     return onSnapshot(collection(db, COLLECTIONS.DOCUMENTS), (snapshot) => {
       const allDocs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ClientDocument));
-      // Filter only invoices and sort by date descending
+      // Filter only invoices and sort by date descending. NOTE: Admin receives ALL invoices, including archived, but UI filters.
       const invoices = allDocs.filter(d => d.type === 'invoice');
       invoices.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       callback(invoices);
@@ -326,7 +326,7 @@ export const contentService = {
     await addDoc(collection(db, COLLECTIONS.DOCUMENTS), docData);
   },
 
-  updateDocumentStatus: async (docId: string, status: string, paymentDetails?: PaymentRecord) => {
+  updateDocumentStatus: async (docId: string, status: string, paymentDetails?: PaymentRecord, archived: boolean = false) => {
     // We first get the current document to merge payment details into invoiceDetails if it exists
     const docRef = doc(db, COLLECTIONS.DOCUMENTS, docId);
     const docSnap = await getDoc(docRef);
@@ -340,6 +340,7 @@ export const contentService = {
 
         await updateDoc(docRef, { 
             status,
+            archived, // Update archived status
             ...(paymentDetails && { paymentDate: paymentDetails.date }),
             ...(updatedInvoiceDetails && { invoiceDetails: updatedInvoiceDetails })
         });

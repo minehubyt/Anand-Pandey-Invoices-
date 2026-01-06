@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Page, Text, View, Document, StyleSheet, Image } from '@react-pdf/renderer';
+import { Page, Text, View, Document, StyleSheet, Image, Svg, Path } from '@react-pdf/renderer';
 import { InvoiceDetails } from '../../types';
 
 // Standard PDF fonts: Helvetica (Sans) matches the Portal's "Inter/Sans" look better than Times.
@@ -301,34 +301,40 @@ const styles = StyleSheet.create({
     marginBottom: 5,
     marginLeft: -10 
   },
-  dscBox: {
-    borderWidth: 1,
-    borderColor: '#000000',
-    padding: 8,
-    marginTop: 5,
-    marginBottom: 10,
-    width: 180,
-  },
-  dscRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 2
-  },
-  dscText: {
-    fontSize: 7,
-    fontFamily: 'Helvetica',
-    color: '#000000',
-  },
-  dscBold: {
-    fontSize: 7,
-    fontFamily: 'Helvetica-Bold',
-    color: '#000000',
-  },
   signAuth: {
     fontFamily: 'Helvetica-Bold',
     fontSize: 9,
     textTransform: 'uppercase',
     color: '#000000',
+  },
+  
+  // --- REALISTIC DIGITAL SIGNATURE STAMP ---
+  dscStampBox: {
+    marginTop: 10,
+    marginBottom: 10,
+    position: 'relative',
+    height: 60, 
+    width: 250,
+    // No border needed, usually invisible container
+  },
+  dscTextLarge: {
+    fontSize: 14,
+    fontFamily: 'Helvetica', // Standard readable font
+    color: '#000000',
+    marginBottom: 4,
+  },
+  dscTextSmall: {
+    fontSize: 9,
+    fontFamily: 'Helvetica',
+    color: '#000000',
+    marginBottom: 2,
+  },
+  checkMarkContainer: {
+    position: 'absolute',
+    top: 5,
+    left: 70, // Overlaid on text
+    opacity: 0.9,
+    zIndex: 10
   }
 });
 
@@ -346,6 +352,19 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data, type = 'invoice' }
   const note = `Inv ${data.invoiceNo}`;
   const upiString = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${Number(data.totalAmount).toFixed(2)}&tn=${encodeURIComponent(note)}&cu=INR`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=450x450&data=${encodeURIComponent(upiString)}&bgcolor=ffffff`;
+
+  // Date formatting for DSC
+  const dscDate = data.digitalSignature 
+    ? new Date(data.digitalSignature.timestamp).toLocaleString('en-GB', { 
+        year: 'numeric', 
+        month: '2-digit', 
+        day: '2-digit', 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit',
+        hour12: false
+      }).replace(',', '') + ' +05:30'
+    : '';
 
   return (
     <Document>
@@ -505,15 +524,24 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data, type = 'invoice' }
               <View style={styles.signatureContainer}>
                  
                  {data.digitalSignature ? (
-                    <View style={styles.dscBox}>
-                       <View style={styles.dscRow}>
-                          <Text style={{...styles.dscBold, fontSize: 8}}>DIGITALLY SIGNED BY:</Text>
-                       </View>
-                       <Text style={{...styles.dscBold, fontSize: 9, marginBottom: 2}}>{data.digitalSignature.signatoryName}</Text>
-                       <Text style={styles.dscText}>Date: {new Date(data.digitalSignature.timestamp).toLocaleString()}</Text>
-                       <Text style={styles.dscText}>Reason: Authorized Signatory</Text>
-                       <Text style={styles.dscText}>Location: New Delhi</Text>
-                       <Text style={{...styles.dscText, marginTop: 2, color: '#666'}}>Token: {data.digitalSignature.tokenDevice}</Text>
+                    <View style={styles.dscStampBox}>
+                       <Text style={styles.dscTextLarge}>Signature valid</Text>
+                       <Text style={styles.dscTextSmall}>Digitally signed by {data.digitalSignature.signatoryName}</Text>
+                       <Text style={styles.dscTextSmall}>Date: {dscDate}</Text>
+                       <Text style={styles.dscTextSmall}>Location: Ranchi</Text>
+                       
+                       {/* SVG Checkmark Overlay */}
+                       <Svg style={styles.checkMarkContainer} height="40" width="40" viewBox="0 0 100 100">
+                          {/* Green Checkmark */}
+                          <Path
+                             d="M20 50 L40 70 L80 20"
+                             stroke="#008000"
+                             strokeWidth="10"
+                             fill="none"
+                             strokeLinecap="round"
+                             strokeLinejoin="round"
+                          />
+                       </Svg>
                     </View>
                  ) : (
                     data.signatureImage && (
