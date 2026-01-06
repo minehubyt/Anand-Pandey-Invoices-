@@ -788,7 +788,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
             serialNumber: cert.serial,
             timestamp: new Date().toISOString(),
             tokenDevice: cert.tokenDevice || 'EMBRIDGE',
-            validUntil: cert.validTo
+            validUntil: cert.validUntil || cert.expires || 'Unknown'
         },
         signatureImage: ''
     });
