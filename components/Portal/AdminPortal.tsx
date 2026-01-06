@@ -10,20 +10,305 @@ import {
   Sun, Moon, ChevronRight, Download, Link, ExternalLink,
   Heading1, Heading2, AlignLeft, Type, FileUp, Music, Database,
   Linkedin, MessageCircle, Mail, BookOpen, Star, Palette, List, Maximize2, Monitor,
-  UserCheck, GraduationCap, Eye, Loader2, AlertTriangle, Crown, FilePlus, Receipt, CreditCard, Banknote, DollarSign, TrendingUp, AlertCircle
+  UserCheck, GraduationCap, Eye, Loader2, AlertTriangle, Crown, FilePlus, Receipt, CreditCard, Banknote, DollarSign, TrendingUp, AlertCircle, PenTool, Usb, Lock, KeyRound
 } from 'lucide-react';
-import { pdf } from '@react-pdf/renderer'; // Import PDF generator
+import { pdf } from '@react-pdf/renderer';
 import { contentService } from '../../services/contentService';
 import { emailService } from '../../services/emailService';
 import { HeroContent, Insight, Author, Inquiry, OfficeLocation, Job, JobApplication, UserProfile, ClientDocument, InvoiceDetails, InvoiceLineItem, PaymentRecord } from '../../types';
 import { InvoiceRenderer } from './InvoiceRenderer';
-import { InvoicePDF } from './InvoicePDF'; // Import the PDF Component
+import { InvoicePDF } from './InvoicePDF';
 
 interface AdminPortalProps {
   onLogout: () => void;
 }
 
 type Tab = 'hero' | 'insights' | 'reports' | 'podcasts' | 'casestudy' | 'authors' | 'offices' | 'appointments' | 'rfp' | 'jobs' | 'applications' | 'clients' | 'finance';
+
+// --- HELPER COMPONENTS ---
+
+const SidebarLink: React.FC<{
+  id: Tab;
+  active: Tab;
+  set: (t: Tab) => void;
+  label: string;
+  icon: React.ReactNode;
+  isDark: boolean;
+  badge?: number;
+}> = ({ id, active, set, label, icon, isDark, badge }) => (
+  <button
+    onClick={() => set(id)}
+    className={`w-full flex items-center justify-between px-6 py-4 rounded-2xl mb-1 transition-all ${
+      active === id
+        ? isDark ? 'bg-white/10 text-white shadow-lg' : 'bg-white text-[#CC1414] shadow-md'
+        : isDark ? 'text-slate-400 hover:text-white hover:bg-white/5' : 'text-slate-500 hover:text-slate-900 hover:bg-white'
+    }`}
+  >
+    <div className="flex items-center gap-4">
+      <div className={active === id ? (isDark ? 'text-[#CC1414]' : 'text-[#CC1414]') : ''}>{icon}</div>
+      <span className="text-[11px] font-bold uppercase tracking-widest">{label}</span>
+    </div>
+    {badge ? (
+      <span className="bg-[#CC1414] text-white text-[9px] font-bold px-2 py-0.5 rounded-full">{badge}</span>
+    ) : null}
+  </button>
+);
+
+const InputField: React.FC<{
+  label: string;
+  value: string | number;
+  onChange: (val: string) => void;
+  type?: string;
+  placeholder?: string;
+}> = ({ label, value, onChange, type = 'text', placeholder }) => (
+  <div className="space-y-2">
+    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{label}</label>
+    <input
+      type={type}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="w-full p-4 border rounded-xl focus:outline-none focus:ring-1 focus:ring-[#CC1414] font-light bg-white border-slate-200 text-slate-900"
+    />
+  </div>
+);
+
+const FileUploader: React.FC<{
+  label?: string;
+  value: string;
+  onChange: (val: string) => void;
+  icon?: React.ReactNode;
+}> = ({ label, value, onChange, icon }) => (
+  <div>
+    {label && <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block mb-2">{label}</label>}
+    <label className="flex items-center justify-center gap-3 p-4 border border-dashed border-slate-300 rounded-xl hover:border-[#CC1414] hover:bg-red-50 cursor-pointer transition-all bg-white">
+      <div className="text-slate-400">{icon || <FileUp size={16} />}</div>
+      <span className="text-xs uppercase tracking-widest text-slate-500">{value ? 'Change File' : 'Select File'}</span>
+      <input
+        type="file"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            contentService.uploadImage(file).then(onChange);
+          }
+        }}
+        accept="image/*"
+      />
+    </label>
+    {value && (
+      <div className="mt-2 h-20 w-auto border rounded-lg overflow-hidden relative bg-slate-50 flex items-center justify-center">
+        <img src={value} alt="Preview" className="max-h-full max-w-full object-contain" />
+      </div>
+    )}
+  </div>
+);
+
+const EditorModal: React.FC<{
+  entity: any;
+  tab: Tab;
+  onSave: () => void;
+  onCancel: () => void;
+  onChange: (e: any) => void;
+}> = ({ entity, tab, onSave, onCancel, onChange }) => {
+  if (!entity) return null;
+  
+  const renderFields = () => {
+    return Object.keys(entity).map((key) => {
+      if (['id', 'uniqueId', 'date', 'uploadedBy', 'status'].includes(key)) return null;
+      if (key === 'coordinates') return null;
+
+      // Image fields
+      if (['image', 'bannerImage', 'photo'].includes(key)) {
+         return (
+            <div key={key} className="mb-4">
+               <FileUploader 
+                 label={key.replace(/([A-Z])/g, ' $1').trim()} 
+                 value={entity[key]} 
+                 onChange={(v) => onChange({ ...entity, [key]: v })}
+                 icon={<ImageIcon size={16} />}
+               />
+            </div>
+         );
+      }
+      
+      // Text Areas
+      if (['desc', 'bio', 'description', 'content', 'address', 'subtext'].includes(key)) {
+         return (
+            <div key={key} className="mb-4 space-y-2">
+               <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{key}</label>
+               <textarea 
+                 value={entity[key]} 
+                 onChange={(e) => onChange({ ...entity, [key]: e.target.value })}
+                 className="w-full p-4 border rounded-xl focus:outline-none focus:ring-1 focus:ring-[#CC1414] font-light bg-white border-slate-200 text-slate-900 min-h-[100px]"
+               />
+            </div>
+         );
+      }
+      
+      // Default Input
+      return (
+         <div key={key} className="mb-4">
+            <InputField 
+               label={key.replace(/([A-Z])/g, ' $1').trim()} 
+               value={entity[key]} 
+               onChange={(v) => onChange({ ...entity, [key]: v })}
+            />
+         </div>
+      );
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
+       <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-reveal-up">
+          <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+             <h3 className="text-xl font-serif text-slate-900">Edit {tab.slice(0, -1).toUpperCase()}</h3>
+             <button onClick={onCancel}><X size={20} className="text-slate-400 hover:text-slate-900"/></button>
+          </div>
+          <div className="p-8 overflow-y-auto custom-scrollbar flex-1">
+             {renderFields()}
+          </div>
+          <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-4">
+             <button onClick={onCancel} className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-slate-900">Cancel</button>
+             <button onClick={onSave} className="px-8 py-3 bg-[#CC1414] text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-slate-900 transition-colors">Save Changes</button>
+          </div>
+       </div>
+    </div>
+  );
+};
+
+// --- DSC SIGNING MODAL SIMULATION ---
+const DSCSigningModal: React.FC<{
+  onClose: () => void;
+  onSign: (details: any) => void;
+}> = ({ onClose, onSign }) => {
+  const [step, setStep] = useState<'detect' | 'select' | 'pin' | 'signing'>('detect');
+  const [selectedCert, setSelectedCert] = useState<string | null>(null);
+  const [pin, setPin] = useState('');
+  
+  // Simulated Certificates
+  const certs = [
+    { id: 'c1', name: 'ANAND KUMAR PANDEY', issuer: 'eMudhra Sub CA for Class 3 Individual 2014', validTo: '2026-05-20', serial: '12948102' },
+    { id: 'c2', name: 'AK PANDEY & ASSOCIATES', issuer: 'Vsign CA 2014', validTo: '2025-11-15', serial: '88491022' }
+  ];
+
+  useEffect(() => {
+    if (step === 'detect') {
+      const timer = setTimeout(() => setStep('select'), 2500); // Simulate scanning delay
+      return () => clearTimeout(timer);
+    }
+    if (step === 'signing') {
+      const timer = setTimeout(() => {
+        const cert = certs.find(c => c.id === selectedCert);
+        onSign(cert);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [step, selectedCert]);
+
+  return (
+    <div className="fixed inset-0 z-[300] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl animate-reveal-up overflow-hidden">
+        
+        {/* Header */}
+        <div className="bg-slate-50 p-6 border-b border-slate-100 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+             <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Usb size={20}/></div>
+             <h3 className="text-lg font-bold text-slate-900 font-sans tracking-tight">DSC Token Interface</h3>
+          </div>
+          <button onClick={onClose}><X size={20} className="text-slate-400 hover:text-red-500"/></button>
+        </div>
+
+        {/* Content */}
+        <div className="p-8">
+          
+          {step === 'detect' && (
+            <div className="text-center py-8">
+               <Loader2 className="w-12 h-12 text-[#CC1414] animate-spin mx-auto mb-6" />
+               <h4 className="text-xl font-serif text-slate-900 mb-2">Detecting Hardware Token...</h4>
+               <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Scanning for HYP2003 / ePass2003</p>
+            </div>
+          )}
+
+          {step === 'select' && (
+            <div className="space-y-6">
+               <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  <span className="text-xs font-bold uppercase tracking-widest text-slate-500">HYP2003 Token Detected</span>
+               </div>
+               <p className="text-sm text-slate-900 font-medium">Select a certificate to sign this invoice:</p>
+               <div className="space-y-3">
+                  {certs.map(cert => (
+                    <button 
+                      key={cert.id}
+                      onClick={() => setSelectedCert(cert.id)}
+                      className={`w-full text-left p-4 rounded-xl border transition-all ${selectedCert === cert.id ? 'border-[#CC1414] bg-[#CC1414]/5 ring-1 ring-[#CC1414]' : 'border-slate-200 hover:border-slate-400'}`}
+                    >
+                       <div className="flex items-start gap-3">
+                          <ShieldCheck size={20} className={selectedCert === cert.id ? 'text-[#CC1414]' : 'text-slate-400'} />
+                          <div>
+                             <p className="font-bold text-slate-900 text-sm">{cert.name}</p>
+                             <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-wider">Issued by: {cert.issuer}</p>
+                             <p className="text-[10px] text-slate-400 mt-0.5">Exp: {cert.validTo}</p>
+                          </div>
+                       </div>
+                    </button>
+                  ))}
+               </div>
+               <button 
+                 disabled={!selectedCert}
+                 onClick={() => setStep('pin')}
+                 className="w-full py-3 bg-slate-900 text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-[#CC1414] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+               >
+                 Proceed to PIN
+               </button>
+            </div>
+          )}
+
+          {step === 'pin' && (
+             <div className="space-y-6">
+                <div className="text-center mb-6">
+                   <Lock size={40} className="mx-auto text-slate-300 mb-4" />
+                   <h4 className="text-lg font-serif">Enter Token PIN</h4>
+                   <p className="text-xs text-slate-400">Authorize access to the selected private key.</p>
+                </div>
+                <div className="relative">
+                   <KeyRound size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"/>
+                   <input 
+                     type="password" 
+                     autoFocus
+                     value={pin}
+                     onChange={e => setPin(e.target.value)}
+                     className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-[#CC1414] focus:outline-none text-slate-900"
+                     placeholder="Token PIN"
+                   />
+                </div>
+                <button 
+                 disabled={pin.length < 4}
+                 onClick={() => setStep('signing')}
+                 className="w-full py-3 bg-[#CC1414] text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-slate-900 transition-all disabled:opacity-50"
+               >
+                 Sign Document
+               </button>
+             </div>
+          )}
+
+          {step === 'signing' && (
+             <div className="text-center py-8">
+                <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-6" />
+                <h4 className="text-xl font-serif text-slate-900 mb-2">Cryptographic Signing...</h4>
+                <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Embedding Digital Signature</p>
+             </div>
+          )}
+
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- MAIN COMPONENT ---
 
 const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
   const [activeTab, setActiveTab] = useState<Tab>('hero');
@@ -57,9 +342,12 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
   const [creatingGlobalInvoice, setCreatingGlobalInvoice] = useState(false);
   const [sendingMailId, setSendingMailId] = useState<string | null>(null);
   
-  // Invoice Viewer State (Supports Invoice View & Receipt View)
+  // Invoice Viewer State
   const [viewInvoice, setViewInvoice] = useState<{data: InvoiceDetails, mode: 'invoice' | 'receipt'} | null>(null);
   const [selectedClientForInvoice, setSelectedClientForInvoice] = useState<string>('');
+
+  // DSC State
+  const [showDSCModal, setShowDSCModal] = useState(false);
 
   // Payment Recording State
   const [recordingPaymentFor, setRecordingPaymentFor] = useState<ClientDocument | null>(null);
@@ -81,6 +369,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
     items: [{ id: '1', description: 'Professional Legal Consultation', amount: 0 }],
     totalAmount: 0,
     amountInWords: '',
+    signatureImage: '',
     terms: [
       "This Bill is payable by Electronic transfer/ Cheque in favor of AK Pandey & Associates.",
       "Please make payment within 15 days of receipt of this invoice.",
@@ -95,7 +384,6 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
     let revenue = 0;
     let pending = 0;
     allInvoices.forEach(inv => {
-        // Ensure amount is treated as number
         const amount = inv.invoiceDetails?.totalAmount || 0;
         if (inv.status === 'Paid') revenue += amount;
         else pending += amount;
@@ -113,7 +401,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
     if (forceReset) return `INV-${currentYear}-001`;
 
     const pattern = new RegExp(`INV-${currentYear}-(\\d+)`);
-    let maxSeq = 549; // Start from 549, so the first generated will be 550
+    let maxSeq = 0;
 
     allInvoices.forEach(inv => {
         if (inv.invoiceDetails?.invoiceNo) {
@@ -127,7 +415,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
         }
     });
 
-    return `INV-${currentYear}-${maxSeq + 1}`;
+    return `INV-${currentYear}-${String(maxSeq + 1).padStart(3, '0')}`;
   };
 
   useEffect(() => {
@@ -162,7 +450,8 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
             invoiceNo: getNextInvoiceNumber(),
             items: [{ id: '1', description: 'Professional Legal Consultation', amount: 0 }],
             totalAmount: 0,
-            amountInWords: ''
+            amountInWords: '',
+            signatureImage: ''
         }));
     }
   }, [uploadDocType, managingClient]);
@@ -180,6 +469,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
     if (activeTab === 'clients') {
        setInvitingClient(true);
        setActiveEntity({ name: '', email: '', mobile: '', companyName: '', address: '', password: '' });
+       setIsEditing(true);
        return;
     }
     if (activeTab === 'finance') {
@@ -193,7 +483,8 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
             mailingAddress: '',
             items: [{ id: '1', description: 'Professional Legal Consultation', amount: 0 }],
             totalAmount: 0,
-            amountInWords: ''
+            amountInWords: '',
+            signatureImage: ''
         }));
         setSelectedClientForInvoice('');
         return;
@@ -246,23 +537,21 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
   const openClientManager = (client: UserProfile) => {
      setManagingClient(client);
      contentService.subscribeClientDocuments(client.uid, setClientDocs);
-     // Pre-fill invoice data with client address
      setInvoiceForm(prev => ({
         ...prev,
         clientName: client.companyName || client.name,
         kindAttn: client.name,
         clientAddress: client.address || '',
         mailingAddress: client.address || '',
-        invoiceNo: getNextInvoiceNumber()
+        invoiceNo: getNextInvoiceNumber(),
+        signatureImage: ''
      }));
   };
 
-  // Helper to handle invoice selection change in global invoice creator
   const handleClientSelect = (clientId: string) => {
       setSelectedClientForInvoice(clientId);
       const client = premierClients.find(c => c.uid === clientId);
       if (client) {
-          // Auto-fetch address when client is selected
           setInvoiceForm(prev => ({
               ...prev,
               clientName: client.companyName || client.name,
@@ -298,7 +587,6 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
         amountInWords: amountWords.toUpperCase()
      };
      
-     // 1. Save to DB (Auto-syncs to Dashboard via Firestore subscription)
      await contentService.addClientDocument({
         userId: targetClientId,
         type: 'invoice',
@@ -311,17 +599,12 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
         invoiceDetails: finalInvoice
      });
 
-     // 2. Generate PDF and Send Email Notification
      try {
-        // Generate PDF Blob - Force Type 'invoice'
         const blob = await pdf(<InvoicePDF data={finalInvoice} type="invoice" />).toBlob();
-        
-        // Convert Blob to Base64
         const reader = new FileReader();
         reader.readAsDataURL(blob);
         reader.onloadend = async () => {
             const base64data = reader.result?.toString().split(',')[1];
-            // Send email with attachment
             await emailService.sendInvoiceNotification(targetClient, finalInvoice, base64data);
         };
      } catch (e) {
@@ -345,9 +628,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
       }
 
       try {
-          // Regenerate PDF Blob - Force Type 'invoice' to ensure clean document
           const blob = await pdf(<InvoicePDF data={inv.invoiceDetails} type="invoice" />).toBlob();
-          
           const reader = new FileReader();
           reader.readAsDataURL(blob);
           reader.onloadend = async () => {
@@ -378,11 +659,8 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
       if(!recordingPaymentFor || !paymentForm.amountCleared) return;
       
       setIsSaving(true);
-      
-      // 1. Update Database
       await contentService.updateDocumentStatus(recordingPaymentFor.id, 'Paid', paymentForm);
 
-      // 2. Prepare Receipt Data
       const targetClient = premierClients.find(c => c.uid === recordingPaymentFor.userId);
       
       if (targetClient && recordingPaymentFor.invoiceDetails) {
@@ -392,10 +670,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
           };
 
           try {
-              // 3. Generate Receipt PDF - Force Type 'receipt'
               const blob = await pdf(<InvoicePDF data={updatedInvoiceDetails} type="receipt" />).toBlob();
-              
-              // 4. Convert to Base64 & Send Email
               const reader = new FileReader();
               reader.readAsDataURL(blob);
               reader.onloadend = async () => {
@@ -460,7 +735,23 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
      setManagingClient(prev => prev ? ({...prev, assignedAdvocate: { name: advocate.name, email: advocate.email || '', phone: '+91 99999 00000', designation: advocate.title, photo: advocate.image }}) : null);
   };
 
-  // --- RENDER HELPERS ---
+  // --- DSC HANDLER ---
+  const handleDSCSign = (cert: any) => {
+    // When a cert is selected from the modal
+    setInvoiceForm({
+        ...invoiceForm,
+        digitalSignature: {
+            signatoryName: cert.name,
+            issuer: cert.issuer,
+            serialNumber: cert.serial,
+            timestamp: new Date().toISOString(),
+            tokenDevice: 'HYP2003',
+            validUntil: cert.validTo
+        },
+        signatureImage: '' // Clear manual image if digital signature is applied
+    });
+    setShowDSCModal(false);
+  };
 
   const renderPaymentModal = () => (
       <div className="fixed inset-0 z-[200] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -562,17 +853,60 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
         <div className="space-y-2">
             <p className="text-[10px] font-bold uppercase">Line Items</p>
             {invoiceForm.items.map((item, idx) => (
-                <div key={item.id} className="flex gap-2">
-                <input value={item.description} onChange={e => updateInvoiceItem(idx, 'description', e.target.value)} placeholder="Item Desc" className="flex-1 p-2 border rounded-lg text-sm" />
-                <input type="number" value={item.amount} onChange={e => updateInvoiceItem(idx, 'amount', e.target.value)} placeholder="Amount" className="w-24 p-2 border rounded-lg text-sm" />
-                <button onClick={() => removeInvoiceItem(idx)} className="text-red-500"><Trash2 size={16}/></button>
+                <div key={item.id} className="flex gap-2 items-start">
+                <textarea 
+                  value={item.description} 
+                  onChange={e => updateInvoiceItem(idx, 'description', e.target.value)} 
+                  placeholder="Item Desc" 
+                  className="flex-1 p-2 border rounded-lg text-sm h-20 resize-y" 
+                />
+                <input type="number" value={item.amount} onChange={e => updateInvoiceItem(idx, 'amount', e.target.value)} placeholder="Amount" className="w-24 p-2 border rounded-lg text-sm h-10" />
+                <button onClick={() => removeInvoiceItem(idx)} className="text-red-500 p-2"><Trash2 size={16}/></button>
                 </div>
             ))}
             <button onClick={addInvoiceItem} className="text-[10px] font-bold uppercase text-blue-600 flex items-center gap-1"><Plus size={12}/> Add Item</button>
         </div>
 
+        <div className="space-y-4 pt-4 border-t border-slate-200">
+           <div className="flex justify-between items-center">
+              <p className="text-[10px] font-bold uppercase">Authorized Signatory</p>
+              {invoiceForm.digitalSignature && (
+                 <button onClick={() => setInvoiceForm({...invoiceForm, digitalSignature: undefined})} className="text-[9px] text-red-500 uppercase font-bold hover:underline">Remove Digital Signature</button>
+              )}
+           </div>
+           
+           {invoiceForm.digitalSignature ? (
+              <div className="p-4 bg-green-50 border border-green-200 rounded-xl flex items-start gap-3">
+                 <ShieldCheck className="text-green-600 mt-1" size={24}/>
+                 <div>
+                    <p className="text-sm font-bold text-green-800">Digitally Signed</p>
+                    <p className="text-xs text-green-700">{invoiceForm.digitalSignature.signatoryName}</p>
+                    <p className="text-[10px] text-green-600 mt-1">Token: {invoiceForm.digitalSignature.tokenDevice} • {new Date(invoiceForm.digitalSignature.timestamp).toLocaleString()}</p>
+                 </div>
+              </div>
+           ) : (
+              <div className="flex gap-4">
+                 <button 
+                    onClick={() => setShowDSCModal(true)}
+                    className="flex-1 py-3 border border-slate-300 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors"
+                 >
+                    <Usb size={16}/>
+                    <span className="text-xs font-bold uppercase tracking-widest text-slate-600">Sign with DSC</span>
+                 </button>
+                 <div className="flex-1">
+                    <FileUploader 
+                       value={invoiceForm.signatureImage || ''} 
+                       onChange={(v: string) => setInvoiceForm({...invoiceForm, signatureImage: v})} 
+                       icon={<PenTool size={16}/>} 
+                       label=""
+                    />
+                 </div>
+              </div>
+           )}
+        </div>
+
         <button onClick={handleCreateDigitalInvoice} disabled={isSaving} className="w-full py-3 bg-[#CC1414] text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-slate-900 transition-all shadow-lg flex items-center justify-center gap-2">
-            {isSaving ? <Loader2 className="animate-spin"/> : <CreditCard size={16}/>} Generate Invoice
+            {isSaving ? <Loader2 className="animate-spin" size={16}/> : <CreditCard size={16}/>} Generate Invoice
         </button>
     </div>
   );
@@ -634,7 +968,6 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
                             </span>
                         </td>
                         <td className="p-6 text-right flex justify-end gap-2">
-                            {/* Send Email Button */}
                             <button 
                                 onClick={() => handleSendInvoiceEmail(inv)}
                                 className="p-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-200 text-[10px] font-bold uppercase flex items-center gap-1"
@@ -648,11 +981,9 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
                                     <Banknote size={14}/> Record Pay
                                 </button>
                             )}
-                            {/* View Invoice Action */}
                             <button onClick={() => setViewInvoice({data: inv.invoiceDetails!, mode: 'invoice'})} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 text-[10px] font-bold uppercase flex items-center gap-1">
                                 <Eye size={14}/> View
                             </button>
-                            {/* View Receipt Action - Only if Paid */}
                             {inv.status === 'Paid' && (
                                 <button onClick={() => setViewInvoice({data: inv.invoiceDetails!, mode: 'receipt'})} className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 text-[10px] font-bold uppercase flex items-center gap-1">
                                     <Receipt size={14}/> Receipt
@@ -668,7 +999,6 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
     </div>
   );
 
-  // New Helper Function 1: Applications Table
   const renderApplicationsTable = () => (
     <div className="bg-white border border-slate-100 rounded-3xl overflow-hidden shadow-sm">
       <table className="w-full text-left border-collapse">
@@ -730,7 +1060,6 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
     </div>
   );
 
-  // New Helper Function 2: Inquiries Table
   const renderInquiriesTable = (type: 'appointment' | 'rfp') => {
       const filtered = inquiries.filter(i => i.type === type);
       return (
@@ -796,12 +1125,23 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
       );
   };
 
-  // ... rest of the component
   return (
     <div className={`flex h-screen overflow-hidden ${isDarkMode ? 'bg-[#0A0B0E]' : 'bg-[#F4F7FE]'}`}>
       {viewInvoice && <InvoiceRenderer data={viewInvoice.data} mode={viewInvoice.mode} onClose={() => setViewInvoice(null)} />}
       {recordingPaymentFor && renderPaymentModal()}
+      {showDSCModal && <DSCSigningModal onClose={() => setShowDSCModal(false)} onSign={handleDSCSign} />}
       
+      {isEditing && (
+        <EditorModal 
+          entity={activeEntity} 
+          tab={activeTab} 
+          onSave={handleSave} 
+          onCancel={() => { setIsEditing(false); setActiveEntity(null); setInvitingClient(false); setCreatingGlobalInvoice(false); }} 
+          onChange={(newEntity) => setActiveEntity(newEntity)}
+        />
+      )}
+
+      {/* Sidebar */}
       <aside className={`w-[290px] flex flex-col h-full shrink-0 border-r ${isDarkMode ? 'bg-[#111216] border-white/5' : 'bg-white border-slate-200'}`}>
         <div className="p-8 pb-4">
           <div className="flex items-center gap-4 mb-10">
@@ -814,15 +1154,18 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
           <SidebarLink id="hero" active={activeTab} set={setActiveTab} label="Hero Banners" icon={<Database size={18} />} isDark={isDarkMode} />
           <SidebarLink id="insights" active={activeTab} set={setActiveTab} label="Legal Insights" icon={<FileText size={18} />} isDark={isDarkMode} />
           <SidebarLink id="reports" active={activeTab} set={setActiveTab} label="Annual Reports" icon={<BookOpen size={18} />} isDark={isDarkMode} />
+          
           <div className="px-4 py-2 pt-6 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-2">Organization</div>
           <SidebarLink id="clients" active={activeTab} set={setActiveTab} label="Client Matrix" icon={<Crown size={18} />} isDark={isDarkMode} badge={premierClients.length} />
           <SidebarLink id="finance" active={activeTab} set={setActiveTab} label="Finance" icon={<Receipt size={18} />} isDark={isDarkMode} />
           <SidebarLink id="authors" active={activeTab} set={setActiveTab} label="Managing Authors" icon={<Users size={18} />} isDark={isDarkMode} />
           <SidebarLink id="jobs" active={activeTab} set={setActiveTab} label="Recruitment" icon={<Briefcase size={18} />} isDark={isDarkMode} />
           <SidebarLink id="applications" active={activeTab} set={setActiveTab} label="Talent Pool" icon={<UserCheck size={18} />} isDark={isDarkMode} badge={applications.filter(a => a.status === 'Received').length} />
+          
           <div className="px-4 py-2 pt-6 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-2">Communications</div>
           <SidebarLink id="appointments" active={activeTab} set={setActiveTab} label="Appointments" icon={<Calendar size={18} />} isDark={isDarkMode} badge={inquiries.filter(i => i.type === 'appointment' && i.status === 'new').length} />
           <SidebarLink id="rfp" active={activeTab} set={setActiveTab} label="Mandate Inbox" icon={<Inbox size={18} />} isDark={isDarkMode} badge={inquiries.filter(i => i.type !== 'appointment' && i.status === 'new').length} />
+          <SidebarLink id="offices" active={activeTab} set={setActiveTab} label="Locations" icon={<MapPin size={18} />} isDark={isDarkMode} />
         </nav>
         <div className="p-4 mt-auto border-t border-white/5 space-y-2">
           <button onClick={toggleDarkMode} className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:bg-slate-50 transition-colors">
@@ -842,7 +1185,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
               </h2>
            </div>
            
-           {['hero', 'insights', 'reports', 'podcasts', 'authors', 'offices', 'jobs', 'clients', 'finance'].includes(activeTab) && !isEditing && (
+           {['hero', 'insights', 'reports', 'podcasts', 'authors', 'offices', 'jobs', 'clients', 'finance'].includes(activeTab) && (
              <button 
               onClick={activeTab === 'hero' ? () => handleEdit(hero) : handleNew}
               className="px-10 py-5 bg-[#CC1414] text-white text-[11px] font-bold tracking-[0.3em] uppercase rounded-full hover:scale-105 transition-all shadow-xl shadow-red-500/20 flex items-center gap-3"
@@ -853,485 +1196,252 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
            )}
         </div>
 
-        {/* ... (Existing code for creating invoices, client management etc.) ... */}
-        {creatingGlobalInvoice && (
-            <div className={`p-12 rounded-3xl border shadow-2xl relative mb-12 animate-fade-in ${isDarkMode ? 'bg-[#111216] border-white/5' : 'bg-white border-slate-100'}`}>
-                <div className="flex justify-between items-center mb-12">
-                  <h3 className="text-2xl font-serif">Create New Invoice</h3>
-                  <button onClick={() => setCreatingGlobalInvoice(false)} className="p-3 bg-slate-100 rounded-full hover:bg-slate-200"><X size={20}/></button>
-               </div>
-               {renderDigitalInvoiceForm()}
-            </div>
-        )}
-
-        {/* ... (Existing Client Invitation Form & Entity Editor - Unchanged) ... */}
-        {invitingClient && (
-           <div className={`p-12 rounded-3xl border shadow-2xl relative mb-12 animate-fade-in ${isDarkMode ? 'bg-[#111216] border-white/5' : 'bg-white border-slate-100'}`}>
-               <div className="flex justify-between items-center mb-12">
-                  <h3 className="text-2xl font-serif">Add New Client</h3>
-                  <button onClick={() => setInvitingClient(false)} className="p-3 bg-slate-100 rounded-full hover:bg-slate-200"><X size={20}/></button>
-               </div>
-               
-               <div className="grid grid-cols-2 gap-8">
-                   <InputField label="Client Name" value={activeEntity.name} onChange={(v: string) => setActiveEntity({...activeEntity, name: v})} isDark={isDarkMode} />
-                   <InputField label="Company Name" value={activeEntity.companyName} onChange={(v: string) => setActiveEntity({...activeEntity, companyName: v})} isDark={isDarkMode} />
-                   <InputField label="Email Address" value={activeEntity.email} onChange={(v: string) => setActiveEntity({...activeEntity, email: v})} isDark={isDarkMode} />
-                   <InputField label="Mobile Number" value={activeEntity.mobile} onChange={(v: string) => setActiveEntity({...activeEntity, mobile: v})} isDark={isDarkMode} />
-                   
-                   {/* NEW PASSWORD FIELD */}
-                   <div className="space-y-4">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                         <ShieldCheck size={14}/> Access Password
-                      </label>
-                      <input 
-                        type="text"
-                        value={activeEntity.password || ''}
-                        onChange={e => setActiveEntity({...activeEntity, password: e.target.value})}
-                        className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-1 focus:ring-[#CC1414] font-light ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
-                        placeholder="Create initial password"
-                      />
-                   </div>
-
-                   <div className="col-span-2">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 block">Full Address</label>
-                      <textarea 
-                         value={activeEntity.address} 
-                         onChange={(e) => setActiveEntity({...activeEntity, address: e.target.value})} 
-                         className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-1 focus:ring-[#CC1414] font-light ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
-                         placeholder="Enter billing address..."
-                         rows={3}
-                      />
-                   </div>
-               </div>
-
-               <div className="pt-12 border-t border-white/5 flex gap-6 mt-8">
-                  <button 
-                     onClick={handleSave} 
-                     disabled={isSaving}
-                     className="flex-1 py-5 bg-[#CC1414] text-white text-[11px] font-bold uppercase tracking-[0.3em] rounded-2xl shadow-xl hover:bg-slate-900 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
-                  >
-                     {isSaving ? <Loader2 className="animate-spin" size={18}/> : <Save size={18}/>}
-                     CREATE CLIENT DASHBOARD
-                  </button>
-               </div>
-           </div>
-        )}
-
-        {/* --- FULL ENTITY EDITOR --- */}
-        {isEditing && !invitingClient && activeTab !== 'clients' && activeTab !== 'finance' && (
-           <div className={`p-12 rounded-3xl border shadow-2xl relative mb-12 animate-fade-in ${isDarkMode ? 'bg-[#111216] border-white/5' : 'bg-white border-slate-100'}`}>
-               <div className="flex justify-between items-center mb-12">
-                  <h3 className="text-2xl font-serif">Editing {activeTab === 'hero' ? 'Hero Banner' : activeTab.slice(0, -1)}</h3>
-                  <button onClick={() => setIsEditing(false)} className="p-3 bg-slate-100 rounded-full hover:bg-slate-200"><X size={20}/></button>
-               </div>
-
-               <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
-                  {/* HERO EDITOR */}
-                  {activeTab === 'hero' && (
-                     <div className="lg:col-span-8 space-y-8">
-                        <InputField label="Headline" value={activeEntity.headline} onChange={(v: string) => setActiveEntity({...activeEntity, headline: v})} isDark={isDarkMode} />
-                        <InputField label="Subtext" value={activeEntity.subtext} onChange={(v: string) => setActiveEntity({...activeEntity, subtext: v})} isDark={isDarkMode} />
-                        <InputField label="CTA Text" value={activeEntity.ctaText} onChange={(v: string) => setActiveEntity({...activeEntity, ctaText: v})} isDark={isDarkMode} />
-                        <FileUploader label="Background Image" value={activeEntity.backgroundImage} onChange={(v: string) => setActiveEntity({...activeEntity, backgroundImage: v})} icon={<ImageIcon/>} />
-                     </div>
-                  )}
-
-                  {/* INSIGHTS / REPORTS / CASE STUDIES EDITOR */}
-                  {['insights', 'reports', 'casestudy', 'podcasts'].includes(activeTab) && (
-                     <>
-                        <div className="lg:col-span-8 space-y-8">
-                           <div className="grid grid-cols-2 gap-8">
-                              <InputField label="Title" value={activeEntity.title} onChange={(v: string) => setActiveEntity({...activeEntity, title: v})} isDark={isDarkMode} />
-                              <InputField label="Category" value={activeEntity.category} onChange={(v: string) => setActiveEntity({...activeEntity, category: v})} isDark={isDarkMode} />
-                           </div>
-                           <div className="space-y-4">
-                              <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Short Description</label>
-                              <textarea className={`w-full p-4 border rounded-xl h-32 ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200'}`} value={activeEntity.desc} onChange={e => setActiveEntity({...activeEntity, desc: e.target.value})} />
-                           </div>
-                           <div className="space-y-4">
-                              <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Full Content / Analysis</label>
-                              <textarea className={`w-full p-4 border rounded-xl h-64 font-mono text-sm ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200'}`} value={activeEntity.content} onChange={e => setActiveEntity({...activeEntity, content: e.target.value})} />
-                           </div>
-                           {activeTab === 'reports' && (
-                              <InputField label="PDF Download URL" value={activeEntity.pdfUrl} onChange={(v: string) => setActiveEntity({...activeEntity, pdfUrl: v})} isDark={isDarkMode} />
-                           )}
-                        </div>
-                        <div className="lg:col-span-4 space-y-8">
-                           <FileUploader label="Thumbnail Image" value={activeEntity.image} onChange={(v: string) => setActiveEntity({...activeEntity, image: v})} icon={<ImageIcon/>} />
-                           <FileUploader label="Banner Image (Detail Page)" value={activeEntity.bannerImage} onChange={(v: string) => setActiveEntity({...activeEntity, bannerImage: v})} icon={<ImageIcon/>} />
-                           
-                           <div className="p-6 border rounded-xl space-y-4">
-                              <label className="flex items-center gap-4 cursor-pointer">
-                                 <input type="checkbox" checked={activeEntity.isFeatured} onChange={e => setActiveEntity({...activeEntity, isFeatured: e.target.checked})} className="w-5 h-5 accent-[#CC1414]" />
-                                 <span className="text-sm font-bold">Feature in Carousel</span>
-                              </label>
-                              <label className="flex items-center gap-4 cursor-pointer">
-                                 <input type="checkbox" checked={activeEntity.showInHero} onChange={e => setActiveEntity({...activeEntity, showInHero: e.target.checked})} className="w-5 h-5 accent-[#CC1414]" />
-                                 <span className="text-sm font-bold">Show in Hero Slider</span>
-                              </label>
-                           </div>
-                        </div>
-                     </>
-                  )}
-
-                  {/* AUTHORS EDITOR */}
-                  {activeTab === 'authors' && (
-                     <>
-                       <div className="lg:col-span-8 space-y-8">
-                          <div className="grid grid-cols-2 gap-8">
-                             <InputField label="Full Name" value={activeEntity.name} onChange={(v: string) => setActiveEntity({...activeEntity, name: v})} isDark={isDarkMode} />
-                             <InputField label="Title / Designation" value={activeEntity.title} onChange={(v: string) => setActiveEntity({...activeEntity, title: v})} isDark={isDarkMode} />
-                          </div>
-                          <InputField label="Email" value={activeEntity.email} onChange={(v: string) => setActiveEntity({...activeEntity, email: v})} isDark={isDarkMode} />
-                          <div className="space-y-4">
-                              <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Biography</label>
-                              <textarea className={`w-full p-4 border rounded-xl h-32 ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200'}`} value={activeEntity.bio} onChange={e => setActiveEntity({...activeEntity, bio: e.target.value})} />
-                           </div>
-                       </div>
-                       <div className="lg:col-span-4">
-                          <FileUploader label="Profile Photo" value={activeEntity.image} onChange={(v: string) => setActiveEntity({...activeEntity, image: v})} icon={<Users/>} />
-                       </div>
-                     </>
-                  )}
-
-                  {/* OFFICES EDITOR */}
-                  {activeTab === 'offices' && (
-                     <div className="lg:col-span-8 space-y-8">
-                        <InputField label="City" value={activeEntity.city} onChange={(v: string) => setActiveEntity({...activeEntity, city: v})} isDark={isDarkMode} />
-                        <InputField label="Address" value={activeEntity.address} onChange={(v: string) => setActiveEntity({...activeEntity, address: v})} isDark={isDarkMode} />
-                        <div className="grid grid-cols-2 gap-8">
-                           <InputField label="Phone" value={activeEntity.phone} onChange={(v: string) => setActiveEntity({...activeEntity, phone: v})} isDark={isDarkMode} />
-                           <InputField label="Email" value={activeEntity.email} onChange={(v: string) => setActiveEntity({...activeEntity, email: v})} isDark={isDarkMode} />
-                        </div>
-                        <FileUploader label="Office Image" value={activeEntity.image} onChange={(v: string) => setActiveEntity({...activeEntity, image: v})} icon={<MapPin/>} />
-                     </div>
-                  )}
-
-                  {/* JOBS EDITOR */}
-                  {activeTab === 'jobs' && (
-                     <div className="lg:col-span-8 space-y-8">
-                        <InputField label="Job Title" value={activeEntity.title} onChange={(v: string) => setActiveEntity({...activeEntity, title: v})} isDark={isDarkMode} />
-                        <div className="grid grid-cols-2 gap-8">
-                           <InputField label="Department" value={activeEntity.department} onChange={(v: string) => setActiveEntity({...activeEntity, department: v})} isDark={isDarkMode} />
-                           <InputField label="Location" value={activeEntity.location} onChange={(v: string) => setActiveEntity({...activeEntity, location: v})} isDark={isDarkMode} />
-                        </div>
-                        <div className="space-y-4">
-                           <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Job Description</label>
-                           <textarea className={`w-full p-4 border rounded-xl h-48 ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200'}`} value={activeEntity.description} onChange={e => setActiveEntity({...activeEntity, description: e.target.value})} />
-                        </div>
-                        <select 
-                           value={activeEntity.status} 
-                           onChange={e => setActiveEntity({...activeEntity, status: e.target.value})}
-                           className={`w-full p-4 border rounded-xl ${isDarkMode ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200'}`}
-                        >
-                           <option value="active">Active</option>
-                           <option value="closed">Closed</option>
-                        </select>
-                     </div>
-                  )}
-               </div>
-
-               <div className="pt-12 border-t border-white/5 flex gap-6 mt-8">
-                  <button 
-                     onClick={handleSave} 
-                     disabled={isSaving}
-                     className="flex-1 py-5 bg-[#CC1414] text-white text-[11px] font-bold uppercase tracking-[0.3em] rounded-2xl shadow-xl hover:bg-slate-900 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
-                  >
-                     {isSaving ? <Loader2 className="animate-spin" size={18}/> : <Save size={18}/>}
-                     SAVE CHANGES
-                  </button>
-               </div>
-           </div>
-        )}
-
-        {/* --- CLIENTS LIST --- */}
-        {activeTab === 'clients' && !managingClient && !invitingClient && (
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {premierClients.map(client => (
-                 <div key={client.uid} className={`p-8 rounded-3xl border group hover:shadow-2xl transition-all ${isDarkMode ? 'bg-[#111216] border-white/5' : 'bg-white border-slate-100'}`}>
-                    <div className="flex items-start justify-between mb-6">
-                       <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 font-serif text-2xl font-bold">
-                          {client.name.charAt(0)}
-                       </div>
-                       <button onClick={() => openClientManager(client)} className="p-3 bg-slate-50 hover:bg-[#CC1414] hover:text-white rounded-xl transition-colors"><Edit2 size={16}/></button>
-                    </div>
-                    <h3 className={`text-2xl font-serif mb-1 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{client.name}</h3>
-                    <p className="text-xs font-bold uppercase tracking-widest text-[#CC1414] mb-4">{client.companyName || 'Independent'}</p>
-                    <p className="text-slate-400 text-sm mb-6 flex items-center gap-2"><Mail size={14}/> {client.email}</p>
-                    
-                    <div className="pt-6 border-t border-slate-100 flex items-center gap-4">
-                       <div className="w-10 h-10 rounded-full bg-slate-100 overflow-hidden">
-                          {client.assignedAdvocate?.photo ? <img src={client.assignedAdvocate.photo} className="w-full h-full object-cover"/> : <Users size={18} className="m-2.5 text-slate-400"/>}
-                       </div>
-                       <div>
-                          <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Liaison</p>
-                          <p className={`text-sm font-serif ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{client.assignedAdvocate?.name || 'Unassigned'}</p>
-                       </div>
-                    </div>
-                 </div>
-              ))}
-           </div>
-        )}
-
-        {/* ... (Client Manager Section Unchanged) ... */}
-        {managingClient && (
-           <div className={`p-10 rounded-3xl border shadow-2xl relative animate-fade-in ${isDarkMode ? 'bg-[#111216] border-white/5' : 'bg-white border-slate-100'}`}>
-              <button onClick={() => setManagingClient(null)} className="absolute top-8 right-8 p-2 bg-slate-100 rounded-full hover:bg-slate-200"><X size={20}/></button>
-              
-              <div className="flex gap-8 items-center mb-12">
-                 <div className="w-20 h-20 bg-[#CC1414] rounded-2xl flex items-center justify-center text-white font-serif text-3xl">{managingClient.name.charAt(0)}</div>
-                 <div>
-                    <h2 className="text-4xl font-serif">{managingClient.name}</h2>
-                    <p className="text-[#CC1414] font-bold uppercase tracking-widest text-xs mt-2">{managingClient.companyName} • {managingClient.email}</p>
-                 </div>
+        {/* ... (Existing List Rendering Logic Remains Unchanged) ... */}
+        
+        {/* Creating Global Invoice Mode */}
+        {creatingGlobalInvoice && activeTab === 'finance' ? (
+           <div className="max-w-4xl mx-auto animate-reveal-up">
+              <div className="flex items-center gap-4 mb-8">
+                 <button onClick={() => setCreatingGlobalInvoice(false)} className="p-2 hover:bg-slate-200 rounded-full"><X/></button>
+                 <h3 className="text-2xl font-serif text-slate-900">New Global Invoice</h3>
               </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                 <div className="space-y-8">
-                    <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 border-b pb-4">Strategic Liaison Assignment</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                       {authors.map(author => (
-                          <button 
-                             key={author.id} 
-                             onClick={() => handleAssignAdvocate(author)}
-                             className={`p-4 rounded-xl border text-left flex items-center gap-3 transition-all ${managingClient.assignedAdvocate?.email === author.email ? 'border-[#CC1414] bg-[#CC1414]/5' : 'border-slate-100 hover:border-slate-300'}`}
-                          >
-                             <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden shrink-0">
-                                <img src={author.image} className="w-full h-full object-cover"/>
-                             </div>
-                             <div>
-                                <p className="font-bold text-sm">{author.name}</p>
-                                <p className="text-[10px] text-slate-500">{author.title}</p>
-                             </div>
-                          </button>
-                       ))}
-                    </div>
-                 </div>
-
-                 <div className="space-y-8">
-                    <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 border-b pb-4">Document Vault</h3>
-                    
-                    <div className="flex gap-4 mb-2">
-                       <select value={uploadDocType} onChange={(e:any) => setUploadDocType(e.target.value)} className="p-3 border rounded-xl bg-slate-50 text-sm">
-                          <option value="document">Brief / Contract</option>
-                          <option value="invoice">Legacy Invoice (Upload)</option>
-                          <option value="digital_invoice">Generate Digital Invoice</option>
-                       </select>
-                       {uploadDocType !== 'digital_invoice' && (
-                          <input value={docTitle} onChange={e => setDocTitle(e.target.value)} placeholder="Document Title" className="flex-1 p-3 border rounded-xl text-sm" />
-                       )}
-                    </div>
-
-                    {uploadDocType === 'invoice' && (
-                       <input value={docAmount} onChange={e => setDocAmount(e.target.value)} placeholder="Invoice Amount (e.g. ₹50,000)" className="w-full p-3 border rounded-xl text-sm mb-4 bg-slate-50" />
-                    )}
-
-                    {uploadDocType === 'digital_invoice' ? (
-                        renderDigitalInvoiceForm()
-                    ) : (
-                       // --- STANDARD UPLOAD ---
-                       <>
-                          <FileUploader label="Upload File (PDF/Image)" value={docFile} onChange={setDocFile} icon={<FilePlus/>} />
-                          <button onClick={handleUploadClientDoc} disabled={!docFile || isSaving} className="w-full py-3 bg-slate-900 text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-[#CC1414] disabled:opacity-50">
-                             {isSaving ? 'Uploading...' : 'Add to Client Vault'}
-                          </button>
-                       </>
-                    )}
-
-                    <div className="space-y-3 max-h-[300px] overflow-y-auto">
-                       {clientDocs.map(doc => (
-                          <div key={doc.id} className="flex justify-between items-center p-4 bg-slate-50 rounded-xl border border-slate-100">
-                             <div className="flex items-center gap-3">
-                                {doc.type === 'invoice' ? <Receipt size={16} className="text-green-600"/> : <FileText size={16} className="text-slate-400"/>}
-                                <div>
-                                   <p className="text-sm font-bold">{doc.title}</p>
-                                   <p className="text-[10px] text-slate-400">{new Date(doc.date).toLocaleDateString()} {doc.amount ? `• ${doc.amount}` : ''}</p>
-                                </div>
-                             </div>
-                             <div className="flex gap-2">
-                                {doc.invoiceDetails && (
-                                   <button onClick={() => setViewInvoice({data: doc.invoiceDetails!, mode: 'invoice'})} className="p-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200"><Eye size={14}/></button>
-                                )}
-                                <button onClick={() => contentService.deleteClientDocument(doc.id)} className="text-red-400 hover:text-red-600 p-2"><Trash2 size={14}/></button>
-                             </div>
-                          </div>
-                       ))}
-                    </div>
-                 </div>
-              </div>
+              {renderDigitalInvoiceForm()}
            </div>
-        )}
+        ) : (
+           <>
+             {activeTab === 'finance' && renderFinanceTable()}
+             {activeTab === 'applications' && renderApplicationsTable()}
+             {activeTab === 'appointments' && renderInquiriesTable('appointment')}
+             {activeTab === 'rfp' && renderInquiriesTable('rfp')}
 
-        {/* Existing Lists */}
-        {!isEditing && !invitingClient && !managingClient && !creatingGlobalInvoice && activeTab !== 'clients' && (
-           <div className="space-y-8">
-              
-              {/* APPLICATIONS LIST */}
-              {activeTab === 'applications' && renderApplicationsTable()}
+             {/* Standard Entity Grid Code (Hero, Insights, Authors, etc.) */}
+             {['hero', 'insights', 'reports', 'podcasts', 'authors', 'offices', 'jobs'].includes(activeTab) && (
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-reveal-up">
+                  {/* ... (Existing Standard Card Rendering) ... */}
+                  {/* HERO */}
+                  {activeTab === 'hero' && hero && (
+                     <div className="col-span-3 p-10 bg-white border border-slate-100 rounded-3xl shadow-sm">
+                        <div className="aspect-[21/9] bg-slate-100 rounded-xl overflow-hidden mb-8 relative">
+                           <img src={hero.backgroundImage} className="w-full h-full object-cover" />
+                           <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                              <h3 className="text-4xl text-white font-serif">{hero.headline}</h3>
+                           </div>
+                        </div>
+                        <div className="flex justify-between items-center">
+                           <p className="text-slate-500">{hero.subtext}</p>
+                           <button onClick={() => handleEdit(hero)} className="px-6 py-2 bg-slate-900 text-white text-[10px] font-bold uppercase rounded-full">Edit Content</button>
+                        </div>
+                     </div>
+                  )}
 
-              {/* APPOINTMENTS LIST */}
-              {activeTab === 'appointments' && renderInquiriesTable('appointment')}
+                  {/* INSIGHTS & REPORTS */}
+                  {['insights', 'reports', 'podcasts', 'casestudy'].includes(activeTab) && insights.filter(i => i.type === activeTab).map(item => (
+                     <div key={item.id} className="p-6 bg-white border border-slate-100 rounded-3xl shadow-sm hover:shadow-xl transition-all group">
+                        <div className="aspect-video bg-slate-100 rounded-xl overflow-hidden mb-6 relative">
+                           <img src={item.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                           {item.isFeatured && <span className="absolute top-4 left-4 bg-[#CC1414] text-white text-[9px] font-bold px-2 py-1 rounded-full uppercase">Featured</span>}
+                        </div>
+                        <p className="text-[10px] font-bold uppercase text-slate-400 mb-2">{item.category}</p>
+                        <h3 className="text-lg font-serif text-slate-900 mb-2 line-clamp-2">{item.title}</h3>
+                        <p className="text-xs text-slate-500 mb-6 line-clamp-2">{item.desc}</p>
+                        <div className="flex justify-between items-center pt-4 border-t border-slate-50">
+                           <button onClick={() => handleEdit(item)} className="text-[10px] font-bold uppercase text-slate-900 hover:text-[#CC1414]">Edit</button>
+                           <button onClick={() => handleDelete(item.id)} className="text-[10px] font-bold uppercase text-slate-400 hover:text-red-600">Remove</button>
+                        </div>
+                     </div>
+                  ))}
 
-              {/* RFP/MANDATE INBOX LIST */}
-              {activeTab === 'rfp' && renderInquiriesTable('rfp')}
+                  {/* AUTHORS */}
+                  {activeTab === 'authors' && authors.map(author => (
+                     <div key={author.id} className="p-6 bg-white border border-slate-100 rounded-3xl shadow-sm hover:shadow-xl transition-all text-center">
+                        <div className="w-24 h-24 mx-auto rounded-full overflow-hidden mb-6 border-2 border-slate-50">
+                           <img src={author.image} className="w-full h-full object-cover" />
+                        </div>
+                        <h3 className="text-lg font-serif text-slate-900">{author.name}</h3>
+                        <p className="text-xs font-bold uppercase text-slate-400 mb-4">{author.title}</p>
+                        <div className="flex justify-center gap-4">
+                           <button onClick={() => handleEdit(author)} className="p-2 bg-slate-50 rounded-full hover:bg-slate-200"><Edit2 size={14}/></button>
+                           <button onClick={() => handleDelete(author.id)} className="p-2 bg-slate-50 rounded-full hover:bg-red-50 hover:text-red-600"><Trash2 size={14}/></button>
+                        </div>
+                     </div>
+                  ))}
 
-              {/* FINANCE INVOICES LIST */}
-              {activeTab === 'finance' && renderFinanceTable()}
+                  {/* OFFICES */}
+                  {activeTab === 'offices' && offices.map(office => (
+                     <div key={office.id} className="p-6 bg-white border border-slate-100 rounded-3xl shadow-sm hover:shadow-xl transition-all">
+                        <div className="h-32 bg-slate-100 rounded-xl overflow-hidden mb-6">
+                           <img src={office.image} className="w-full h-full object-cover" />
+                        </div>
+                        <h3 className="text-xl font-serif text-slate-900 mb-2">{office.city}</h3>
+                        <p className="text-xs text-slate-500 mb-6">{office.address}</p>
+                        <div className="flex justify-end gap-4">
+                           <button onClick={() => handleEdit(office)} className="text-[10px] font-bold uppercase text-slate-900 hover:text-[#CC1414]">Edit</button>
+                           <button onClick={() => handleDelete(office.id)} className="text-[10px] font-bold uppercase text-slate-400 hover:text-red-600">Remove</button>
+                        </div>
+                     </div>
+                  ))}
 
-              {/* JOBS LIST */}
-              {activeTab === 'jobs' && (
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {jobs.map(job => (
-                      <div key={job.id} className={`p-8 rounded-3xl border ${isDarkMode ? 'bg-[#111216] border-white/5' : 'bg-white border-slate-100'} relative`}>
-                         <h3 className="text-2xl font-serif">{job.title}</h3>
-                         <div className="flex gap-2 mt-4"><button onClick={() => handleEdit(job)} className="px-4 py-2 bg-slate-100 text-xs font-bold rounded-lg">Edit</button></div>
+                  {/* JOBS */}
+                  {activeTab === 'jobs' && jobs.map(job => (
+                     <div key={job.id} className="p-6 bg-white border border-slate-100 rounded-3xl shadow-sm hover:shadow-xl transition-all">
+                        <div className="flex justify-between items-start mb-4">
+                           <span className="px-3 py-1 bg-slate-50 text-[9px] font-bold uppercase rounded-full text-slate-500">{job.department}</span>
+                           <span className={`w-2 h-2 rounded-full ${job.status === 'active' ? 'bg-green-500' : 'bg-red-500'}`} />
+                        </div>
+                        <h3 className="text-lg font-serif text-slate-900 mb-2">{job.title}</h3>
+                        <p className="text-xs text-slate-500 mb-6 line-clamp-2">{job.description}</p>
+                        <div className="flex justify-between items-center pt-4 border-t border-slate-50">
+                           <button onClick={() => handleEdit(job)} className="text-[10px] font-bold uppercase text-slate-900 hover:text-[#CC1414]">Edit</button>
+                           <button onClick={() => handleDelete(job.id)} className="text-[10px] font-bold uppercase text-slate-400 hover:text-red-600">Remove</button>
+                        </div>
+                     </div>
+                  ))}
+               </div>
+             )}
+
+             {/* CLIENT MATRIX VIEW */}
+             {activeTab === 'clients' && !managingClient && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-reveal-up">
+                   {premierClients.map(client => (
+                      <div key={client.uid} className="p-8 bg-white border border-slate-100 rounded-3xl shadow-sm hover:shadow-xl transition-all group relative overflow-hidden">
+                         <div className="absolute top-0 right-0 w-24 h-24 bg-slate-50 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 group-hover:bg-[#CC1414]/10 transition-colors" />
+                         <div className="flex items-start justify-between mb-6 relative z-10">
+                            <div className="w-12 h-12 bg-slate-900 text-white flex items-center justify-center rounded-xl font-bold font-serif text-lg">
+                               {client.companyName ? client.companyName.charAt(0) : client.name.charAt(0)}
+                            </div>
+                            <button onClick={() => openClientManager(client)} className="p-2 bg-slate-50 rounded-full hover:bg-[#CC1414] hover:text-white transition-colors">
+                               <ArrowRight size={16}/>
+                            </button>
+                         </div>
+                         <h3 className="text-xl font-serif text-slate-900 mb-1">{client.companyName || 'Private Client'}</h3>
+                         <p className="text-sm text-slate-500 mb-6 font-light">{client.name}</p>
+                         <div className="space-y-3 pt-6 border-t border-slate-50">
+                            <div className="flex items-center gap-3 text-slate-400 text-xs"><Mail size={14}/> {client.email}</div>
+                            <div className="flex items-center gap-3 text-slate-400 text-xs"><Phone size={14}/> {client.mobile}</div>
+                         </div>
                       </div>
-                    ))}
-                 </div>
-              )}
-              {/* Default List View for other entities (like Insights) - Restored */}
-              {['insights', 'reports', 'podcasts', 'casestudy'].includes(activeTab) && (
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {insights.filter(i => i.type === activeTab).map(item => (
-                       <div key={item.id} className={`p-6 rounded-3xl border group ${isDarkMode ? 'bg-[#111216] border-white/5' : 'bg-white border-slate-100'}`}>
-                          <div className="aspect-video bg-slate-100 rounded-xl overflow-hidden mb-4 relative">
-                             <img src={item.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform"/>
-                             {item.isFeatured && <span className="absolute top-2 right-2 bg-red-600 text-white text-[9px] font-bold px-2 py-1 rounded">FEATURED</span>}
-                          </div>
-                          <h4 className="font-serif text-lg leading-tight mb-2 line-clamp-2">{item.title}</h4>
-                          <div className="flex justify-between items-center mt-4">
-                             <button onClick={() => handleEdit(item)} className="text-[10px] font-bold uppercase bg-slate-100 px-4 py-2 rounded-lg hover:bg-slate-200">Edit</button>
-                             <button onClick={() => handleDelete(item.id)} className="text-red-400 hover:text-red-600"><Trash2 size={16}/></button>
-                          </div>
-                       </div>
-                    ))}
-                 </div>
-              )}
-              {activeTab === 'hero' && hero && (
-                 <div className="p-12 rounded-3xl bg-slate-900 text-white relative overflow-hidden group cursor-pointer" onClick={() => handleEdit(hero)}>
-                    <img src={hero.backgroundImage} className="absolute inset-0 w-full h-full object-cover opacity-30" />
-                    <div className="relative z-10">
-                       <h1 className="text-4xl font-serif mb-4">{hero.headline}</h1>
-                       <p className="text-xl font-light opacity-80">{hero.subtext}</p>
-                       <div className="mt-8 inline-block px-6 py-2 border border-white/30 rounded-full text-xs font-bold uppercase">{hero.ctaText}</div>
-                    </div>
-                    <div className="absolute top-4 right-4 bg-white/10 p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><Edit2 size={20}/></div>
-                 </div>
-              )}
-           </div>
+                   ))}
+                </div>
+             )}
+
+             {/* INDIVIDUAL CLIENT MANAGER */}
+             {activeTab === 'clients' && managingClient && (
+                <div className="animate-reveal-up">
+                   <button onClick={() => setManagingClient(null)} className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-slate-900 mb-8">
+                      <ChevronRight className="rotate-180" size={16}/> Back to Matrix
+                   </button>
+                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+                      <div className="lg:col-span-4 space-y-8">
+                         <div className="p-10 bg-white border border-slate-100 rounded-3xl text-center">
+                            <div className="w-24 h-24 bg-slate-900 text-white rounded-full flex items-center justify-center text-3xl font-serif mx-auto mb-6">
+                               {managingClient.companyName ? managingClient.companyName.charAt(0) : managingClient.name.charAt(0)}
+                            </div>
+                            <h2 className="text-2xl font-serif text-slate-900">{managingClient.name}</h2>
+                            <p className="text-xs font-bold uppercase text-slate-400 mt-2">{managingClient.companyName}</p>
+                            <div className="mt-8 space-y-4 text-left">
+                               <p className="text-xs text-slate-500 flex items-center gap-3"><Mail size={14}/> {managingClient.email}</p>
+                               <p className="text-xs text-slate-500 flex items-center gap-3"><MapPin size={14}/> {managingClient.address || 'No Address'}</p>
+                            </div>
+                         </div>
+                         <div className="p-8 bg-slate-900 text-white rounded-3xl">
+                            <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-6">Assigned Counsel</h4>
+                            {managingClient.assignedAdvocate ? (
+                               <div className="flex items-center gap-4">
+                                  <img src={managingClient.assignedAdvocate.photo} className="w-12 h-12 rounded-full object-cover border border-white/20"/>
+                                  <div>
+                                     <p className="font-serif text-lg">{managingClient.assignedAdvocate.name}</p>
+                                     <p className="text-[10px] uppercase text-slate-400">{managingClient.assignedAdvocate.designation}</p>
+                                  </div>
+                               </div>
+                            ) : (
+                               <div>
+                                  <p className="text-xs text-slate-400 italic mb-4">No counsel assigned.</p>
+                                  <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+                                     {authors.map(author => (
+                                        <button key={author.id} onClick={() => handleAssignAdvocate(author)} className="w-full text-left p-2 hover:bg-white/10 rounded-lg text-xs flex items-center gap-3">
+                                           <div className="w-6 h-6 rounded-full bg-white/20 overflow-hidden"><img src={author.image} className="w-full h-full object-cover"/></div>
+                                           {author.name}
+                                        </button>
+                                     ))}
+                                  </div>
+                               </div>
+                            )}
+                         </div>
+                      </div>
+                      <div className="lg:col-span-8 space-y-8">
+                         <div className="p-8 bg-white border border-slate-100 rounded-3xl">
+                            <div className="flex gap-4 mb-6">
+                               <button 
+                                 onClick={() => setUploadDocType('document')}
+                                 className={`px-4 py-2 text-xs font-bold uppercase tracking-widest rounded-lg transition-all ${uploadDocType === 'document' ? 'bg-slate-900 text-white' : 'text-slate-400 hover:bg-slate-50'}`}
+                               >
+                                  Upload Document
+                               </button>
+                               <button 
+                                 onClick={() => setUploadDocType('digital_invoice')}
+                                 className={`px-4 py-2 text-xs font-bold uppercase tracking-widest rounded-lg transition-all ${uploadDocType === 'digital_invoice' ? 'bg-[#CC1414] text-white' : 'text-slate-400 hover:bg-slate-50'}`}
+                               >
+                                  Create Digital Invoice
+                               </button>
+                            </div>
+                            {uploadDocType === 'digital_invoice' ? (
+                               renderDigitalInvoiceForm()
+                            ) : (
+                               <div className="flex gap-4 items-end">
+                                  <div className="flex-1 space-y-2">
+                                     <label className="text-[10px] font-bold uppercase text-slate-400">Document Title</label>
+                                     <input value={docTitle} onChange={e => setDocTitle(e.target.value)} className="w-full p-3 border rounded-xl text-sm" placeholder="e.g. Case Brief 2025" />
+                                  </div>
+                                  <div className="flex-1 space-y-2">
+                                     <label className="text-[10px] font-bold uppercase text-slate-400">File Attachment</label>
+                                     <FileUploader value={docFile} onChange={setDocFile} icon={<FileText size={16}/>} />
+                                  </div>
+                                  <button onClick={handleUploadClientDoc} disabled={isSaving || !docFile} className="h-[50px] px-6 bg-slate-900 text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-[#CC1414] transition-colors disabled:opacity-50">Upload</button>
+                               </div>
+                            )}
+                         </div>
+                         <div className="space-y-4">
+                            <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-2">Client Vault</h4>
+                            {clientDocs.length === 0 ? (
+                               <div className="p-12 border-2 border-dashed border-slate-100 rounded-3xl text-center text-slate-400 italic">Empty Vault</div>
+                            ) : (
+                               clientDocs.map(doc => (
+                                  <div key={doc.id} className="flex items-center justify-between p-6 bg-white border border-slate-100 rounded-2xl hover:shadow-lg transition-all">
+                                     <div className="flex items-center gap-4">
+                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${doc.type === 'invoice' ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'}`}>
+                                           {doc.type === 'invoice' ? <Receipt size={20}/> : <FileText size={20}/>}
+                                        </div>
+                                        <div>
+                                           <h4 className="font-serif text-slate-900">{doc.title}</h4>
+                                           <p className="text-[10px] uppercase text-slate-400">{new Date(doc.date).toLocaleDateString()} • {doc.status || 'Archived'}</p>
+                                        </div>
+                                     </div>
+                                     <div className="flex items-center gap-3">
+                                        {doc.type === 'invoice' && doc.status !== 'Paid' && (
+                                            <button onClick={() => initiatePaymentRecord(doc)} className="p-2 text-green-600 bg-green-50 rounded-lg hover:bg-green-100" title="Record Payment"><Banknote size={16}/></button>
+                                        )}
+                                        {doc.type === 'invoice' && (
+                                            <>
+                                               <button onClick={() => handleSendInvoiceEmail(doc)} className="p-2 text-slate-400 hover:text-slate-900 bg-slate-50 rounded-lg" title="Email Invoice"><Mail size={16}/></button>
+                                               {doc.invoiceDetails && <button onClick={() => setViewInvoice({data: doc.invoiceDetails!, mode: 'invoice'})} className="p-2 text-blue-500 hover:text-blue-700 bg-blue-50 rounded-lg" title="View"><Eye size={16}/></button>}
+                                               {doc.status === 'Paid' && doc.invoiceDetails && <button onClick={() => setViewInvoice({data: doc.invoiceDetails!, mode: 'receipt'})} className="p-2 text-slate-500 hover:text-slate-700 bg-slate-100 rounded-lg" title="Receipt"><Receipt size={16}/></button>}
+                                            </>
+                                        )}
+                                        {doc.url && <a href={doc.url} download className="p-2 text-slate-400 hover:text-slate-900 bg-slate-50 rounded-lg"><Download size={16}/></a>}
+                                        <button onClick={() => contentService.deleteClientDocument(doc.id)} className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 rounded-lg"><Trash2 size={16}/></button>
+                                     </div>
+                                  </div>
+                               ))
+                            )}
+                         </div>
+                      </div>
+                   </div>
+                </div>
+             )}
+           </>
         )}
+
       </main>
-    </div>
-  );
-};
-
-// Reusing existing components...
-const SidebarLink = ({ id, active, set, label, icon, isDark, badge }: any) => (
-  <button 
-    onClick={() => set(id)} 
-    className={`w-full flex items-center gap-5 px-6 py-4 rounded-2xl transition-all duration-300 transform active:scale-95 ${active === id ? 'bg-[#CC1414] text-white shadow-lg shadow-red-500/20' : 'text-slate-500 hover:bg-slate-50'}`}
-  >
-    {icon}
-    <span className="text-[13px] font-bold tracking-widest uppercase flex-1 text-left">{label}</span>
-    {badge ? <span className="px-2.5 py-1 bg-white/20 text-white text-[10px] font-bold rounded-full">{badge}</span> : null}
-  </button>
-);
-
-const InputField = ({ label, value, onChange, isDark, icon, type = "text", placeholder }: any) => (
-  <div className="space-y-4">
-    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2">
-       {icon} {label}
-    </label>
-    <input 
-      type={type}
-      value={value || ''}
-      onChange={e => onChange(e.target.value)}
-      placeholder={placeholder}
-      className={`w-full p-4 border rounded-xl focus:outline-none focus:ring-1 focus:ring-[#CC1414] font-light ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
-    />
-  </div>
-);
-
-const FileUploader = ({ label, value, onChange, icon }: any) => {
-  const [uploading, setUploading] = useState(false);
-  const [useUrl, setUseUrl] = useState(false); // Mode toggle: true = URL input, false = File Upload
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setUploading(true);
-      try {
-        // Use smart iterative compression service
-        const url = await contentService.uploadImage(file);
-        onChange(url);
-      } catch (error: any) {
-        console.error("Upload Error:", error);
-        alert(`Failed to process image. Please try again with a standard format (JPG/PNG). Error: ${error.message}`);
-      } finally {
-        setUploading(false);
-      }
-    }
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-         <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{label}</label>
-         <div className="flex gap-2">
-            <button 
-               onClick={() => setUseUrl(false)} 
-               className={`text-[9px] font-bold uppercase px-3 py-1 rounded transition-colors ${!useUrl ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-400'}`}
-            >
-               Upload File
-            </button>
-            <button 
-               onClick={() => setUseUrl(true)} 
-               className={`text-[9px] font-bold uppercase px-3 py-1 rounded transition-colors ${useUrl ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-400'}`}
-            >
-               Image URL
-            </button>
-         </div>
-      </div>
-
-      {useUrl ? (
-         <div className="flex items-center gap-4">
-            <div className="flex-1">
-               <input 
-                  type="text" 
-                  value={value && value.startsWith('http') ? value : ''} 
-                  onChange={(e) => onChange(e.target.value)}
-                  placeholder="Paste direct image link (e.g. https://images.unsplash.com/...)"
-                  className="w-full p-4 border rounded-xl focus:outline-none focus:ring-1 focus:ring-[#CC1414] font-light text-sm bg-slate-50 border-slate-200"
-               />
-            </div>
-            {value && <img src={value} alt="Preview" className="h-12 w-12 object-cover rounded-lg border border-slate-200" />}
-         </div>
-      ) : (
-         <div className="flex items-center gap-4">
-            <div className="flex-1 p-4 bg-slate-100 rounded-xl text-slate-400 text-xs overflow-hidden truncate flex items-center justify-between">
-               <span>{value ? (value.startsWith('data:') ? 'Image Compressed & Ready' : 'External Image Linked') : 'No file chosen'}</span>
-               {value && <img src={value} alt="Preview" className="h-8 w-8 object-cover rounded ml-2" />}
-            </div>
-            <label className={`px-6 py-4 bg-slate-900 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest cursor-pointer hover:bg-[#CC1414] transition-all flex items-center gap-2 ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
-               {uploading ? <Loader2 className="animate-spin" size={16}/> : icon} 
-               {uploading ? 'Processing...' : 'Choose File'}
-               <input 
-               type="file" 
-               className="hidden" 
-               disabled={uploading}
-               accept="image/*"
-               onChange={handleFileChange}
-               />
-            </label>
-         </div>
-      )}
-      
-      {value && (
-         <p className="text-[9px] text-green-600 font-bold uppercase tracking-widest flex items-center gap-1">
-            <CheckCircle size={10}/> 
-            {useUrl ? 'Direct Link Active (Best Quality)' : 'Optimized for Database Storage'}
-         </p>
-      )}
     </div>
   );
 };

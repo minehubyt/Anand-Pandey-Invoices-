@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { X, Printer, Download, CheckCircle, Receipt, Calendar, CreditCard, Hash, Loader2, Smartphone } from 'lucide-react';
+import { X, Printer, Download, CheckCircle, Receipt, Calendar, CreditCard, Hash, Loader2, Smartphone, ShieldCheck } from 'lucide-react';
 import { pdf } from '@react-pdf/renderer';
 import { InvoiceDetails } from '../../types';
 import { InvoicePDF } from './InvoicePDF';
@@ -186,7 +186,7 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
                       <tr key={idx}>
                          <td className="py-3 pl-2 align-top">{idx + 1}.</td>
                          <td className="py-3 align-top pr-8">
-                            <p className="font-bold text-black">{item.description}</p>
+                            <p className="font-bold text-black whitespace-pre-line">{item.description}</p>
                          </td>
                          <td className="py-3 pr-2 align-top text-right font-bold text-black">
                             {Number(item.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
@@ -260,10 +260,27 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
           </div>
 
           {/* Bottom Signature Area (Separate Row, Below Terms) */}
-          <div className="flex justify-end mt-8 border-t border-transparent">
+          <div className="flex justify-start mt-8 border-t border-transparent">
              {mode === 'invoice' && (
-                <div className="text-right">
-                   <p className="mb-12 text-slate-500 italic font-serif text-xs">This document is digitally signed</p>
+                <div className="text-left">
+                   
+                   {data.digitalSignature ? (
+                      <div className="mb-4 p-2 border border-black bg-white inline-block">
+                         <div className="flex items-center gap-2 mb-1">
+                            <ShieldCheck size={12} className="text-black" />
+                            <p className="font-bold text-[8px] uppercase text-black">Digitally Signed By</p>
+                         </div>
+                         <p className="font-bold text-[10px] text-black mb-1">{data.digitalSignature.signatoryName}</p>
+                         <p className="text-[8px] text-black">Date: {new Date(data.digitalSignature.timestamp).toLocaleString()}</p>
+                         <p className="text-[8px] text-black">Reason: Auth Signatory</p>
+                         <p className="text-[8px] text-black">Location: New Delhi</p>
+                      </div>
+                   ) : (
+                      data.signatureImage && (
+                         <img src={data.signatureImage} alt="Authorized Signature" className="h-10 mb-2 object-contain" />
+                      )
+                   )}
+
                    <p className="font-bold text-black uppercase">For AK Pandey & Associates</p>
                    <p className="text-slate-500 mt-1">Authorized Signatory</p>
                 </div>

@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginTop: 10,
-    marginBottom: 10, // Reduced bottom margin slightly to keep tighter
+    marginBottom: 10, 
     minHeight: 100, // Ensure space reserved
   },
   termsColumn: {
@@ -284,21 +284,45 @@ const styles = StyleSheet.create({
 
   // --- Signature ---
   footerSection: {
-    marginTop: 20, // Increased top margin to push below terms
+    marginTop: 20,
     flexDirection: 'row',
-    justifyContent: 'flex-end', 
-    alignItems: 'flex-end',
+    justifyContent: 'flex-start', // Signature on LEFT
+    alignItems: 'flex-start',
   },
   signatureContainer: {
-    textAlign: 'right',
+    textAlign: 'left', // Align Left
     marginTop: 10,
-    minWidth: 200, // Ensure width for alignment
+    minWidth: 200,
   },
-  signText: {
-    fontFamily: 'Helvetica-Oblique', // Italic Sans
-    fontSize: 8,
+  signImage: {
+    height: 40,
+    width: 120,
+    objectFit: 'contain',
+    marginBottom: 5,
+    marginLeft: -10 
+  },
+  dscBox: {
+    borderWidth: 1,
+    borderColor: '#000000',
+    padding: 8,
+    marginTop: 5,
+    marginBottom: 10,
+    width: 180,
+  },
+  dscRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2
+  },
+  dscText: {
+    fontSize: 7,
+    fontFamily: 'Helvetica',
     color: '#000000',
-    marginBottom: 25,
+  },
+  dscBold: {
+    fontSize: 7,
+    fontFamily: 'Helvetica-Bold',
+    color: '#000000',
   },
   signAuth: {
     fontFamily: 'Helvetica-Bold',
@@ -479,7 +503,24 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data, type = 'invoice' }
            {/* Signature - ONLY FOR INVOICES */}
            {!isReceipt && (
               <View style={styles.signatureContainer}>
-                 <Text style={styles.signText}>This document is digitally signed</Text>
+                 
+                 {data.digitalSignature ? (
+                    <View style={styles.dscBox}>
+                       <View style={styles.dscRow}>
+                          <Text style={{...styles.dscBold, fontSize: 8}}>DIGITALLY SIGNED BY:</Text>
+                       </View>
+                       <Text style={{...styles.dscBold, fontSize: 9, marginBottom: 2}}>{data.digitalSignature.signatoryName}</Text>
+                       <Text style={styles.dscText}>Date: {new Date(data.digitalSignature.timestamp).toLocaleString()}</Text>
+                       <Text style={styles.dscText}>Reason: Authorized Signatory</Text>
+                       <Text style={styles.dscText}>Location: New Delhi</Text>
+                       <Text style={{...styles.dscText, marginTop: 2, color: '#666'}}>Token: {data.digitalSignature.tokenDevice}</Text>
+                    </View>
+                 ) : (
+                    data.signatureImage && (
+                       <Image src={data.signatureImage} style={styles.signImage} />
+                    )
+                 )}
+
                  <Text style={styles.signAuth}>FOR AK PANDEY & ASSOCIATES</Text>
                  <Text style={{ fontSize: 9, color: '#000000', marginTop: 2 }}>Authorized Signatory</Text>
               </View>

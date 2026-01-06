@@ -116,6 +116,15 @@ export interface PaymentRecord {
   transactionReference: string;
 }
 
+export interface DigitalSignature {
+  signatoryName: string;
+  issuer: string;
+  serialNumber: string;
+  timestamp: string;
+  tokenDevice: string;
+  validUntil: string;
+}
+
 export interface InvoiceDetails {
   invoiceNo: string;
   date: string;
@@ -128,6 +137,8 @@ export interface InvoiceDetails {
   amountInWords: string;
   terms: string[];
   payment?: PaymentRecord;
+  signatureImage?: string; // For manual signature image
+  digitalSignature?: DigitalSignature; // For DSC
 }
 
 export interface ClientDocument {
