@@ -259,10 +259,17 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   qrLabel: {
-    fontSize: 7,
+    fontSize: 8,
     fontFamily: 'Helvetica-Bold',
     textTransform: 'uppercase',
     color: '#000000',
+    marginTop: 2,
+  },
+  qrSubLabel: {
+    fontSize: 7,
+    fontFamily: 'Helvetica',
+    color: '#666666',
+    marginTop: 2,
   },
   signatureContainer: {
     alignSelf: 'flex-end',
@@ -436,6 +443,8 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data, type = 'invoice' }
            <View style={styles.qrContainer}>
               <Image style={styles.qrImage} src={qrUrl} />
               <Text style={styles.qrLabel}>Scan to Pay via UPI</Text>
+              <Text style={styles.qrSubLabel}>GPay • PhonePe • Paytm</Text>
+              <Text style={{ fontSize: 6, fontFamily: 'Helvetica', color: '#999', marginTop: 1 }}>{upiId}</Text>
            </View>
 
            {/* Signature - ONLY FOR INVOICES */}

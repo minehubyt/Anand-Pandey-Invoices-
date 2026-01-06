@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { X, Printer, Download, CheckCircle, Receipt, Calendar, CreditCard, Hash, Loader2 } from 'lucide-react';
+import { X, Printer, Download, CheckCircle, Receipt, Calendar, CreditCard, Hash, Loader2, Smartphone } from 'lucide-react';
 import { pdf } from '@react-pdf/renderer';
 import { InvoiceDetails } from '../../types';
 import { InvoicePDF } from './InvoicePDF';
@@ -92,9 +92,9 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
           <div className="flex justify-between items-start mb-12">
             <div className="flex flex-col">
                <div className="flex items-center font-sans uppercase tracking-[0.15em] text-[#A6192E] font-bold mb-4">
-                  <span className="text-2xl leading-none font-serif">AK PANDEY</span>
+                  <span className="text-2xl leading-none font-medium">AK PANDEY</span>
                   <span className="text-sm mx-1.5 self-center">&</span>
-                  <span className="text-2xl leading-none font-serif">ASSOCIATES</span>
+                  <span className="text-2xl leading-none font-medium">ASSOCIATES</span>
                </div>
             </div>
             <div className="text-right text-[10px] leading-relaxed text-slate-600">
@@ -244,8 +244,17 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
              <div className="flex justify-between items-end mt-16">
                 <div className="flex flex-col items-center">
                    {/* PAYMENT QR CODE */}
-                   <img src={qrUrl} alt="Payment QR" className="w-24 h-24 border border-slate-200 p-1 mb-2" />
-                   <span className="text-[8px] font-bold uppercase tracking-widest text-slate-900 bg-slate-100 px-2 py-1 rounded">Scan to Pay via UPI</span>
+                   <div className="relative group">
+                      <img src={qrUrl} alt="Payment QR" className="w-24 h-24 border border-slate-200 p-1 mb-2" />
+                      <div className="absolute -inset-1 border border-dashed border-slate-300 rounded-sm pointer-events-none opacity-50"></div>
+                   </div>
+                   <span className="text-[9px] font-bold uppercase tracking-widest text-slate-900 mt-1">Scan to Pay</span>
+                   <span className="text-[8px] text-slate-500 font-mono mb-1">{upiId}</span>
+                   <div className="flex items-center gap-2 opacity-70 mt-1">
+                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide border px-1 rounded">GPay</span>
+                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide border px-1 rounded">PhonePe</span>
+                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wide border px-1 rounded">Paytm</span>
+                   </div>
                 </div>
 
                 {mode === 'invoice' && (
