@@ -10,7 +10,7 @@ import {
   Sun, Moon, ChevronRight, Download, Link, ExternalLink,
   Heading1, Heading2, AlignLeft, Type, FileUp, Music, Database,
   Linkedin, MessageCircle, Mail, BookOpen, Star, Palette, List, Maximize2, Monitor,
-  UserCheck, GraduationCap, Eye, Loader2, AlertTriangle, Crown, FilePlus, Receipt, CreditCard, Banknote, DollarSign, TrendingUp, AlertCircle, PenTool, Usb, Lock, KeyRound, HardDrive, AlertOctagon, ToggleLeft, ToggleRight, Settings, FileKey, HardDrive as HardDriveIcon, RefreshCcw
+  UserCheck, GraduationCap, Eye, Loader2, AlertTriangle, Crown, FilePlus, Receipt, CreditCard, Banknote, DollarSign, TrendingUp, AlertCircle, PenTool, Usb, Lock, KeyRound, HardDrive, AlertOctagon, ToggleLeft, ToggleRight, Settings, FileKey, HardDrive as HardDriveIcon, RefreshCcw, FileBadge
 } from 'lucide-react';
 import { pdf } from '@react-pdf/renderer';
 import { contentService } from '../../services/contentService';
@@ -230,148 +230,69 @@ const EditorModal: React.FC<{
   );
 };
 
-// --- REAL ADOBE-STYLE DSC SCANNER (PROTOCOL AWARE - LIVE DATA) ---
+// --- MOCK ADOBE-STYLE DSC SCANNER ---
+// Uses dummy data to simulate the exact experience of having a connected token.
 const DSCSigningModal: React.FC<{
   onClose: () => void;
   onSign: (details: any) => void;
 }> = ({ onClose, onSign }) => {
-  const [step, setStep] = useState<'scan' | 'select' | 'pin'>('scan');
-  const [selectedId, setSelectedId] = useState<string>('');
+  const [step, setStep] = useState<'select' | 'pin'>('select');
+  const [selectedId, setSelectedId] = useState<string>('cert-1');
   const [pin, setPin] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
   const [isSigning, setIsSigning] = useState(false);
-  const [certificates, setCertificates] = useState<any[]>([]);
-  const [scanningStatus, setScanningStatus] = useState('Initializing Bridge...');
-  
-  // Settings for debugging connection
-  const [showSettings, setShowSettings] = useState(false);
-  const [bridgePort, setBridgePort] = useState('26769'); // Default eMudhra port
-  const [bridgeProtocol, setBridgeProtocol] = useState('https');
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const fetchCertificates = async () => {
-    setStep('scan');
-    setScanningStatus(`Contacting Bridge on port ${bridgePort}...`);
-    setErrorMsg('');
-    setCertificates([]);
-
-    try {
-      // 1. Connection Check
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000);
-      
-      // Try to hit the root or a common endpoint. 
-      // Note: Actual payload depends on specific emBridge version.
-      // We try a generic GET first to see if port is open.
-      try {
-          await fetch(`${bridgeProtocol}://127.0.0.1:${bridgePort}/`, { 
-              method: 'GET',
-              mode: 'cors', // Try CORS first
-              signal: controller.signal
-          });
-      } catch (e) {
-          // If GET fails, it might be 404 (good, server exists) or Network Error (bad)
-          // We proceed to try getting certificates anyway as some bridges only accept POST
-      }
-      clearTimeout(timeoutId);
-
-      // 2. Fetch Certificates (Simulating the API call structure for generic emSigner/emBridge)
-      // Since we don't have the exact proprietary API doc, we will fail if the server doesn't respond standardly.
-      // This ensures "Real Software" behavior - it won't fake it.
-      
-      setScanningStatus('Retrieving Certificates...');
-      
-      const payload = {
-          "action": "getCertificate", // Common action name
-          "tokenType": "usb" 
-      };
-
-      const response = await fetch(`${bridgeProtocol}://127.0.0.1:${bridgePort}/getSignerCertificates`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-      }).catch(async () => {
-          // Fallback endpoint
-          return await fetch(`${bridgeProtocol}://127.0.0.1:${bridgePort}/certificate`, {
-             method: 'POST'
-          });
-      });
-
-      if (response && response.ok) {
-          const data = await response.json();
-          // Map real data here. 
-          // Assuming data structure: { certificates: [{ name, issuer, serial, expiry }] }
-          if (data && data.certificates && data.certificates.length > 0) {
-              const mappedCerts = data.certificates.map((c: any, idx: number) => ({
-                  id: `cert-${idx}`,
-                  name: c.subject || c.name || 'Unknown',
-                  issuer: c.issuer || 'Unknown CA',
-                  expires: c.validTo || c.expiry || '',
-                  serial: c.serialNumber || c.serial || '',
-                  icon: 'file'
-              }));
-              setCertificates(mappedCerts);
-              setSelectedId(mappedCerts[0].id);
-              setStep('select');
-          } else {
-              throw new Error("Connected to Bridge, but no certificates found on token.");
-          }
-      } else {
-          throw new Error(`Bridge Service responded with status ${response?.status || 'Unknown'}. Endpoint mismatch.`);
-      }
-
-    } catch (e: any) {
-        console.error("DSC Fetch Error:", e);
-        setErrorMsg(`Connection Failed: ${e.message}. Ensure 'emSigner' or 'emBridge' is running on port ${bridgePort}.`);
-        // We stay on 'scan' step but show error to indicate REAL failure.
+  // Mock Certificates exactly as requested
+  const certificates = [
+    {
+      id: 'cert-1',
+      name: 'Anand Kumar Pandey',
+      issuer: 'Anand Kumar Pandey',
+      expires: '2031.01.04',
+      serial: 'AKP-2025-001',
+      icon: 'file',
+      type: 'Digital ID file'
+    },
+    {
+      id: 'cert-2',
+      name: 'dbed7db8-9373-4661-85e8-356f66...',
+      issuer: 'dbed7db8-9373-4661-85e8-356f...',
+      expires: '2026.11.07',
+      serial: 'WIN-837492',
+      icon: 'windows',
+      type: 'Windows Digital ID'
+    },
+    {
+      id: 'cert-3',
+      name: 'f2220746-3815-4692-9063-ae9a40...',
+      issuer: 'f2220746-3815-4692-9063-ae9a...',
+      expires: '2026.11.19',
+      serial: 'WIN-992834',
+      icon: 'windows',
+      type: 'Windows Digital ID'
     }
-  };
-
-  useEffect(() => {
-    fetchCertificates();
-  }, []);
+  ];
 
   const handleSign = async () => {
     if (!pin) return;
     setIsSigning(true);
     setErrorMsg('');
 
-    try {
-        // REAL SIGNING ATTEMPT
+    // Simulate Processing Delay
+    setTimeout(() => {
         const selectedCert = certificates.find(c => c.id === selectedId);
-        if (!selectedCert) return;
-
-        // Perform Sign Call to Localhost
-        const signPayload = {
-            "action": "sign",
-            "data": "BASE64_HASH_OF_PDF", // In real app, this is actual PDF hash
-            "serial": selectedCert.serial,
-            "pin": pin
-        };
-
-        const response = await fetch(`${bridgeProtocol}://127.0.0.1:${bridgePort}/sign`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(signPayload)
-        });
-
-        if (!response.ok) throw new Error("Bridge refused signature request (Invalid PIN or Token Locked).");
-        
-        const result = await response.json();
-        
-        // Pass back real signature data
-        onSign({
-            name: selectedCert.name,
-            issuer: selectedCert.issuer,
-            serial: selectedCert.serial,
-            timestamp: new Date().toISOString(),
-            tokenDevice: 'Hardware Token',
-            signatureData: result.signature // Real signature bytes
-        });
-
-    } catch (e: any) {
-        setErrorMsg(e.message || "Signing failed.");
+        if (selectedCert) {
+            onSign({
+                name: selectedCert.name.includes('Anand') ? 'ANAND KUMAR PANDEY' : 'SYSTEM ADMIN',
+                issuer: selectedCert.issuer,
+                serial: selectedCert.serial,
+                timestamp: new Date().toISOString(),
+                tokenDevice: selectedCert.type,
+                validUntil: selectedCert.expires
+            });
+        }
         setIsSigning(false);
-    }
+    }, 1500);
   };
 
   return (
@@ -382,64 +303,21 @@ const DSCSigningModal: React.FC<{
         <div className="flex justify-between items-center px-4 py-3 border-b border-gray-300 bg-white">
           <h3 className="text-[15px] font-semibold text-gray-800">Sign with Digital ID</h3>
           <div className="flex items-center gap-2">
-             <button onClick={() => setShowSettings(!showSettings)} className="text-gray-500 hover:text-black"><Settings size={16}/></button>
+             <button onClick={() => {}} className="px-3 py-1 border border-gray-300 rounded text-xs hover:bg-gray-100 text-gray-700">Refresh</button>
              <button onClick={onClose}><X size={16} className="text-gray-500 hover:text-gray-800"/></button>
           </div>
         </div>
 
-        {/* SETTINGS DRAWER */}
-        {showSettings && (
-            <div className="px-4 py-3 bg-gray-100 border-b border-gray-300 flex items-center gap-2">
-                <span className="text-xs font-bold">Port:</span>
-                <input value={bridgePort} onChange={e => setBridgePort(e.target.value)} className="w-16 p-1 border rounded text-xs" />
-                <span className="text-xs font-bold ml-2">Protocol:</span>
-                <select value={bridgeProtocol} onChange={e => setBridgeProtocol(e.target.value)} className="p-1 border rounded text-xs">
-                    <option value="https">HTTPS</option>
-                    <option value="http">HTTP</option>
-                </select>
-                <button onClick={fetchCertificates} className="ml-auto px-3 py-1 bg-gray-200 border rounded text-xs hover:bg-gray-300">Test Connection</button>
-            </div>
-        )}
-
         {/* BODY */}
         <div className="p-0 bg-white min-h-[350px] flex flex-col relative">
           
-          {step === 'scan' && (
-             <div className="flex flex-col items-center justify-center flex-1 space-y-6 bg-gray-50 p-8 text-center">
-                {errorMsg ? (
-                    <>
-                        <div className="p-4 bg-red-50 border border-red-200 rounded-full text-red-600"><AlertTriangle size={32}/></div>
-                        <div>
-                            <p className="text-[14px] font-bold text-red-700 mb-2">Bridge Connection Failed</p>
-                            <p className="text-[12px] text-gray-600 max-w-sm mx-auto">{errorMsg}</p>
-                        </div>
-                        <button onClick={fetchCertificates} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 shadow-sm rounded text-xs font-bold hover:bg-gray-100">
-                            <RefreshCcw size={14}/> Retry Connection
-                        </button>
-                    </>
-                ) : (
-                    <>
-                        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" strokeWidth={2} />
-                        <div>
-                            <p className="text-sm font-bold text-gray-700">{scanningStatus}</p>
-                            <p className="text-xs text-gray-500 mt-1">Scanning secure local ports...</p>
-                        </div>
-                    </>
-                )}
-             </div>
-          )}
-
           {step === 'select' && (
              <div className="flex flex-col flex-1">
                 <div className="p-4 bg-white border-b border-gray-200">
                    <p className="text-[13px] text-gray-700">Choose the Digital ID that you want to use for signing:</p>
                 </div>
                 
-                <div className="flex-1 overflow-y-auto max-h-[300px] p-2 bg-gray-50">
-                   <div className="flex justify-end mb-2 px-2">
-                      <button onClick={fetchCertificates} className="px-3 py-1 bg-white border border-gray-300 rounded text-xs hover:bg-gray-100 transition-colors">Refresh</button>
-                   </div>
-                   
+                <div className="flex-1 overflow-y-auto max-h-[300px] p-2 bg-white">
                    <div className="space-y-1">
                       {certificates.map((cert) => (
                          <div 
@@ -451,11 +329,11 @@ const DSCSigningModal: React.FC<{
                                <input type="radio" checked={selectedId === cert.id} onChange={() => setSelectedId(cert.id)} className="w-4 h-4 text-blue-600 focus:ring-blue-500 cursor-pointer" />
                             </div>
                             <div className="mr-4 pt-1 text-gray-500">
-                               {cert.icon === 'file' ? <FileKey size={24} strokeWidth={1.5} /> : <HardDriveIcon size={24} strokeWidth={1.5} />}
+                               {cert.icon === 'file' ? <FileBadge size={24} strokeWidth={1.5} /> : <FileKey size={24} strokeWidth={1.5} />}
                             </div>
                             <div className="flex-1">
-                               <p className="text-[14px] font-semibold text-gray-900">{cert.name}</p>
-                               <p className="text-[11px] text-gray-500 mt-0.5">Issued by: {cert.issuer}, Expires: {cert.expires}</p>
+                               <p className="text-[14px] font-semibold text-gray-900 truncate w-64">{cert.name}</p>
+                               <p className="text-[11px] text-gray-500 mt-0.5 truncate w-64">Issued by: {cert.issuer}, Expires: {cert.expires}</p>
                             </div>
                             <div className="pt-1">
                                <button className="text-[12px] text-blue-600 hover:underline font-medium">View Details</button>
@@ -482,8 +360,8 @@ const DSCSigningModal: React.FC<{
                 <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded flex gap-4 items-start">
                    <div className="text-gray-500"><FileKey size={32}/></div>
                    <div>
-                      <p className="text-[14px] font-bold text-gray-900">{certificates.find(c => c.id === selectedId)?.name}</p>
-                      <p className="text-[12px] text-gray-500">Certificate Store: Hardware Token</p>
+                      <p className="text-[14px] font-bold text-gray-900 truncate w-64">{certificates.find(c => c.id === selectedId)?.name}</p>
+                      <p className="text-[12px] text-gray-500">{certificates.find(c => c.id === selectedId)?.type}</p>
                    </div>
                 </div>
 
