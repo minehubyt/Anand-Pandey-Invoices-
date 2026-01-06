@@ -15,15 +15,12 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
   const [isGenerating, setIsGenerating] = useState(false);
   
   // --- UPI PAYMENT LOGIC ---
-  // Specific ID: 7541076176@ybl
-  // This constructs a standard UPI string that opens PhonePe/GPay/Paytm when scanned
   const upiId = "7541076176@ybl";
   const payeeName = "AK Pandey Associates";
   const note = `Inv ${data.invoiceNo}`;
-  // Ensure amount is formatted to 2 decimal places for the payment string
-  const upiString = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${data.totalAmount.toFixed(2)}&tn=${encodeURIComponent(note)}&cu=INR`;
+  const upiString = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${Number(data.totalAmount).toFixed(2)}&tn=${encodeURIComponent(note)}&cu=INR`;
   
-  // Generate QR Image URL using the UPI string - Increased size request
+  // Generate QR Image URL using the UPI string - Increased size
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(upiString)}&bgcolor=ffffff`;
 
   const handlePrint = () => {
@@ -34,15 +31,11 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
   const handleDownloadPDF = async () => {
     setIsGenerating(true);
     try {
-      // 1. Force the correct mode prop explicitly
       const doc = <InvoicePDF data={data} type={mode} />;
-      
-      // 2. Generate Blob
       const blob = await pdf(doc).toBlob();
       
       if (!blob) throw new Error("PDF Blob generation returned null");
 
-      // 3. Trigger Download
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -174,7 +167,7 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
 
           {mode === 'receipt' && (
              <div className="mb-10 text-[13px] leading-relaxed italic text-slate-600 border-l-4 border-slate-200 pl-4 py-2 font-serif">
-                "Received with thanks from <strong className="text-black not-italic font-sans">{data.clientName}</strong> a sum of <strong className="text-black not-italic font-sans">INR {data.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong> towards the full and final settlement of Invoice No. {data.invoiceNo}."
+                "Received with thanks from <strong className="text-black not-italic font-sans">{data.clientName}</strong> a sum of <strong className="text-black not-italic font-sans">INR {Number(data.totalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong> towards the full and final settlement of Invoice No. {data.invoiceNo}."
              </div>
           )}
 
@@ -196,7 +189,7 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
                             <p className="font-bold text-black">{item.description}</p>
                          </td>
                          <td className="py-3 pr-2 align-top text-right font-bold text-black">
-                            {item.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            {Number(item.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                          </td>
                       </tr>
                    ))}
@@ -210,7 +203,7 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
              <div className="w-1/2 pt-2">
                 <div className="flex justify-between items-center mb-2">
                    <span className="font-bold text-base text-black">{mode === 'receipt' ? 'Amount Received' : 'Gross Amount'}</span>
-                   <span className="font-bold text-base text-black">{data.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                   <span className="font-bold text-base text-black">{Number(data.totalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                 </div>
              </div>
           </div>
@@ -229,7 +222,7 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
                      <p className="font-bold mb-4 uppercase text-black border-b border-slate-100 pb-2">Terms and Conditions</p>
                      <ul className="list-none space-y-2 pl-0 mb-8">
                         {data.terms.map((term, i) => {
-                           const isBankDetails = term.toLowerCase().includes('bank details') || term.toLowerCase().includes('ifsc');
+                           const isBankDetails = term.toLowerCase().includes('bank details') || term.toLowerCase().includes('ifsc') || term.toLowerCase().includes('account number');
                            return (
                               <li key={i} className="flex gap-2">
                                  <span>{String.fromCharCode(97 + i)})</span>
@@ -264,11 +257,11 @@ export const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ data, onClose,
 
           </div>
 
-          {/* Bottom Signature Area (Separate Row) */}
-          <div className="flex justify-end mt-4">
+          {/* Bottom Signature Area (Separate Row, Below Terms) */}
+          <div className="flex justify-end mt-8 border-t border-transparent">
              {mode === 'invoice' && (
                 <div className="text-right">
-                   <p className="mb-12 text-slate-500 italic font-serif">This document is digitally signed</p>
+                   <p className="mb-12 text-slate-500 italic font-serif text-xs">This document is digitally signed</p>
                    <p className="font-bold text-black uppercase">For AK Pandey & Associates</p>
                    <p className="text-slate-500 mt-1">Authorized Signatory</p>
                 </div>

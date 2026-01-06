@@ -8,17 +8,18 @@ import { InvoiceDetails } from '../../types';
 
 const styles = StyleSheet.create({
   page: {
-    padding: 40,
+    padding: 30, // Reduced padding to ensure fit
+    paddingTop: 40,
     fontFamily: 'Helvetica',
-    fontSize: 10,
-    lineHeight: 1.5,
+    fontSize: 9, // Slightly reduced base font size
+    lineHeight: 1.4,
     color: '#000000', // Pure Black
   },
   // --- Header ---
   headerContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 40,
+    marginBottom: 30,
   },
   logoContainer: {
     flexDirection: 'column',
@@ -30,14 +31,14 @@ const styles = StyleSheet.create({
   },
   // MATCHING PORTAL LOGO EXACTLY: Sans-Serif (Helvetica-Bold), Red, Wide Spacing
   logoMain: {
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: 'Helvetica-Bold', 
-    letterSpacing: 3,
+    letterSpacing: 2.5,
     color: '#A6192E', // Brand Red
     textTransform: 'uppercase',
   },
   logoAmp: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: 'Helvetica',
     color: '#A6192E', // Brand Red
     marginHorizontal: 4,
@@ -45,13 +46,13 @@ const styles = StyleSheet.create({
   },
   companyDetails: {
     textAlign: 'right',
-    fontSize: 9,
+    fontSize: 8,
     color: '#000000',
   },
   companyNameBold: {
     fontFamily: 'Helvetica-Bold',
     color: '#000000',
-    fontSize: 9,
+    fontSize: 8,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 2,
@@ -61,7 +62,7 @@ const styles = StyleSheet.create({
   gridContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 30,
+    marginBottom: 20,
   },
   metaColumn: {
     flexDirection: 'column',
@@ -69,39 +70,39 @@ const styles = StyleSheet.create({
   },
   metaRow: {
     flexDirection: 'row',
-    marginBottom: 5,
+    marginBottom: 4,
   },
   metaLabel: {
-    width: 90,
+    width: 80,
     fontFamily: 'Helvetica-Bold',
-    fontSize: 10,
+    fontSize: 9,
     color: '#000000',
   },
   metaValue: {
     flex: 1,
-    fontSize: 10,
+    fontSize: 9,
     color: '#000000',
   },
   addressLabel: {
     fontFamily: 'Helvetica-Bold',
-    fontSize: 10,
+    fontSize: 9,
     color: '#000000',
     marginBottom: 2,
-    marginTop: 10,
+    marginTop: 8,
   },
   addressValue: {
-    fontSize: 10,
+    fontSize: 9,
     color: '#000000',
     textTransform: 'uppercase',
-    marginBottom: 20,
+    marginBottom: 10,
   },
 
   // --- Payment Receipt Box ---
   paymentBox: {
     borderWidth: 1,
     borderColor: '#000000',
-    padding: 10,
-    marginBottom: 20,
+    padding: 8,
+    marginBottom: 15,
     flexDirection: 'row',
     justifyContent: 'space-between'
   },
@@ -109,20 +110,20 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
   },
   paymentLabel: {
-    fontSize: 8,
+    fontSize: 7,
     fontFamily: 'Helvetica-Bold',
     textTransform: 'uppercase',
     color: '#000000',
     marginBottom: 2,
   },
   paymentVal: {
-    fontSize: 10,
+    fontSize: 9,
     color: '#000000',
   },
 
   // --- Table ---
   tableContainer: {
-    marginTop: 20,
+    marginTop: 15,
     marginBottom: 10,
   },
   tableHeader: {
@@ -131,39 +132,39 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1.5, // Strong Black Line
     borderTopColor: '#000000',
     borderBottomColor: '#000000',
-    paddingVertical: 8,
+    paddingVertical: 6,
     alignItems: 'center',
   },
   tableRow: {
     flexDirection: 'row',
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderBottomWidth: 0.5,
     borderBottomColor: '#000000',
   },
   colNo: {
-    width: '10%',
+    width: '8%',
     fontFamily: 'Helvetica-Bold',
-    fontSize: 10,
+    fontSize: 9,
     color: '#000000',
   },
   colDesc: {
-    width: '65%',
+    width: '67%',
     fontFamily: 'Helvetica-Bold',
-    fontSize: 10,
+    fontSize: 9,
     color: '#000000',
   },
   colAmount: {
     width: '25%',
     textAlign: 'right',
     fontFamily: 'Helvetica-Bold',
-    fontSize: 10,
+    fontSize: 9,
     color: '#000000',
   },
   colAmountVal: {
     width: '25%',
     textAlign: 'right',
     fontFamily: 'Helvetica-Bold',
-    fontSize: 10,
+    fontSize: 9,
     color: '#000000',
   },
 
@@ -180,10 +181,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderBottomWidth: 2, // Double Line Effect (Simulated with thick border)
     borderBottomColor: '#000000',
-    paddingVertical: 12,
+    paddingVertical: 10,
   },
   totalLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: 'Helvetica-Bold',
     color: '#000000',
     textAlign: 'right',
@@ -192,7 +193,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase'
   },
   totalValue: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: 'Helvetica-Bold',
     color: '#000000',
     textAlign: 'right',
@@ -201,16 +202,16 @@ const styles = StyleSheet.create({
 
   // --- Words Section ---
   amountWordsSection: {
-    marginTop: 20,
-    marginBottom: 30, // Reduced slightly to bring terms up
+    marginTop: 15,
+    marginBottom: 20, 
     borderBottomWidth: 1,
     borderBottomColor: '#000000',
-    paddingBottom: 10,
+    paddingBottom: 8,
   },
   amountWords: {
     fontFamily: 'Helvetica-Bold',
     textTransform: 'uppercase',
-    fontSize: 10,
+    fontSize: 9,
     color: '#000000',
   },
 
@@ -219,49 +220,50 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 20,
     marginTop: 10,
+    marginBottom: 20,
+    minHeight: 120, // Ensure space reserved
   },
   termsColumn: {
-    width: '60%',
+    width: '55%',
   },
   qrColumn: {
-    width: '35%',
+    width: '40%',
     alignItems: 'center',
-    paddingTop: 10,
+    paddingTop: 5,
   },
   termsTitle: {
-    fontSize: 9,
+    fontSize: 8,
     fontFamily: 'Helvetica-Bold',
     textTransform: 'uppercase',
     color: '#000000',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   termItem: {
     flexDirection: 'row',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   termBullet: {
-    width: 15,
-    fontSize: 9,
+    width: 12,
+    fontSize: 8,
     color: '#000000',
   },
   termText: {
     flex: 1,
-    fontSize: 9,
+    fontSize: 8,
     color: '#000000',
   },
   termTextBold: {
     flex: 1,
-    fontSize: 9,
+    fontSize: 8,
     color: '#000000',
     fontFamily: 'Helvetica-Bold',
   },
 
   // --- QR Specifics ---
   qrImage: {
-    width: 150, // Increased size as requested
-    height: 150,
+    width: 130, // Large QR
+    height: 130,
     marginBottom: 4,
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -271,7 +273,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Helvetica-Bold',
     textTransform: 'uppercase',
     color: '#000000',
-    marginTop: 2,
+    marginTop: 4,
   },
   qrSubLabel: {
     fontSize: 7,
@@ -282,23 +284,24 @@ const styles = StyleSheet.create({
 
   // --- Signature ---
   footerSection: {
-    marginTop: 20,
+    marginTop: 10, // Reduced spacing
     flexDirection: 'row',
-    justifyContent: 'flex-end', // Only signature at bottom right now
+    justifyContent: 'flex-end', 
     alignItems: 'flex-end',
   },
   signatureContainer: {
     textAlign: 'right',
+    marginTop: 10
   },
   signText: {
     fontFamily: 'Helvetica-Oblique', // Italic Sans
-    fontSize: 9,
+    fontSize: 8,
     color: '#000000',
-    marginBottom: 30,
+    marginBottom: 25,
   },
   signAuth: {
     fontFamily: 'Helvetica-Bold',
-    fontSize: 10,
+    fontSize: 9,
     textTransform: 'uppercase',
     color: '#000000',
   }
@@ -342,8 +345,8 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data, type = 'invoice' }
         </View>
 
         {/* Title Block */}
-        <View style={{ marginBottom: 20, borderBottomWidth: 1, borderBottomColor: '#000000', paddingBottom: 5 }}>
-           <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 14, textTransform: 'uppercase', color: '#000000' }}>
+        <View style={{ marginBottom: 15, borderBottomWidth: 1, borderBottomColor: '#000000', paddingBottom: 4 }}>
+           <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 12, textTransform: 'uppercase', color: '#000000' }}>
               {isReceipt ? 'PAYMENT RECEIPT' : 'PROFESSIONAL FEE INVOICE'}
            </Text>
         </View>
@@ -399,7 +402,7 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data, type = 'invoice' }
 
         {/* Receipt Acknowledgement Text */}
         {isReceipt && (
-           <Text style={{ fontFamily: 'Helvetica-Oblique', fontSize: 10, marginBottom: 20, color: '#000000' }}>
+           <Text style={{ fontFamily: 'Helvetica-Oblique', fontSize: 9, marginBottom: 15, color: '#000000' }}>
               Received with thanks from {data.clientName} a sum of INR {Number(data.totalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })} towards full and final settlement.
            </Text>
         )}
@@ -434,20 +437,20 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data, type = 'invoice' }
            <Text style={styles.amountWords}>RUPEES {data.amountInWords}</Text>
         </View>
 
-        {/* Terms & QR Code (Side by Side) */}
+        {/* Terms & QR Code (Side by Side) - Explicit Ordering */}
         <View style={styles.termsAndQrContainer}>
            
            {/* Terms Column */}
            <View style={styles.termsColumn}>
               <Text style={styles.termsTitle}>{isReceipt ? 'PAYMENT ACKNOWLEDGEMENT' : 'TERMS AND CONDITIONS'}</Text>
               {isReceipt ? (
-                 <Text style={{ fontSize: 9, color: '#000000' }}>
+                 <Text style={{ fontSize: 8, color: '#000000' }}>
                     This receipt is computer generated and valid without signature. The payment has been credited to AK Pandey & Associates.
                  </Text>
               ) : (
                  data.terms.map((term, i) => {
                     // Logic to detect Bank Details string and bold it
-                    const isBankDetails = term.toLowerCase().includes('bank details') || term.toLowerCase().includes('ifsc');
+                    const isBankDetails = term.toLowerCase().includes('bank details') || term.toLowerCase().includes('ifsc') || term.toLowerCase().includes('account number');
                     return (
                        <View key={i} style={styles.termItem}>
                           <Text style={styles.termBullet}>{String.fromCharCode(97 + i)})</Text>
@@ -461,14 +464,14 @@ export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data, type = 'invoice' }
            {/* QR Column */}
            <View style={styles.qrColumn}>
               <Image style={styles.qrImage} src={qrUrl} />
-              <Text style={styles.qrLabel}>Scan to Pay via UPI</Text>
+              <Text style={styles.qrLabel}>SCAN TO PAY VIA UPI</Text>
               <Text style={styles.qrSubLabel}>GPay • PhonePe • Paytm</Text>
               <Text style={{ fontSize: 6, fontFamily: 'Helvetica', color: '#999', marginTop: 1 }}>{upiId}</Text>
            </View>
 
         </View>
 
-        {/* Footer Signature Area */}
+        {/* Footer Signature Area - Explicitly Below Terms */}
         <View style={styles.footerSection}>
            {/* Signature - ONLY FOR INVOICES */}
            {!isReceipt && (

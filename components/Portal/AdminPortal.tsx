@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   LayoutDashboard, FileText, Users, MapPin, 
   LogOut, Plus, Edit2, Trash2, 
@@ -10,7 +10,7 @@ import {
   Sun, Moon, ChevronRight, Download, Link, ExternalLink,
   Heading1, Heading2, AlignLeft, Type, FileUp, Music, Database,
   Linkedin, MessageCircle, Mail, BookOpen, Star, Palette, List, Maximize2, Monitor,
-  UserCheck, GraduationCap, Eye, Loader2, AlertTriangle, Crown, FilePlus, Receipt, CreditCard, Banknote
+  UserCheck, GraduationCap, Eye, Loader2, AlertTriangle, Crown, FilePlus, Receipt, CreditCard, Banknote, DollarSign, TrendingUp, AlertCircle
 } from 'lucide-react';
 import { pdf } from '@react-pdf/renderer'; // Import PDF generator
 import { contentService } from '../../services/contentService';
@@ -90,6 +90,46 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
     ]
   });
 
+  // --- FINANCE STATISTICS ---
+  const financeStats = useMemo(() => {
+    let revenue = 0;
+    let pending = 0;
+    allInvoices.forEach(inv => {
+        // Ensure amount is treated as number
+        const amount = inv.invoiceDetails?.totalAmount || 0;
+        if (inv.status === 'Paid') revenue += amount;
+        else pending += amount;
+    });
+    return {
+        revenue,
+        pending,
+        count: allInvoices.length
+    };
+  }, [allInvoices]);
+
+  // --- SMART INVOICE NUMBERING ---
+  const getNextInvoiceNumber = (forceReset = false) => {
+    const currentYear = new Date().getFullYear();
+    if (forceReset) return `INV-${currentYear}-001`;
+
+    const pattern = new RegExp(`INV-${currentYear}-(\\d+)`);
+    let maxSeq = 549; // Start from 549, so the first generated will be 550
+
+    allInvoices.forEach(inv => {
+        if (inv.invoiceDetails?.invoiceNo) {
+            const match = inv.invoiceDetails.invoiceNo.match(pattern);
+            if (match) {
+                const seq = parseInt(match[1], 10);
+                if (!isNaN(seq) && seq > maxSeq) {
+                    maxSeq = seq;
+                }
+            }
+        }
+    });
+
+    return `INV-${currentYear}-${maxSeq + 1}`;
+  };
+
   useEffect(() => {
     setLoading(true);
     const unsubs = [
@@ -119,7 +159,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
             kindAttn: managingClient.name,
             clientAddress: managingClient.address || '',
             mailingAddress: managingClient.address || '',
-            invoiceNo: `INV-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000)}`,
+            invoiceNo: getNextInvoiceNumber(),
             items: [{ id: '1', description: 'Professional Legal Consultation', amount: 0 }],
             totalAmount: 0,
             amountInWords: ''
@@ -146,7 +186,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
         setCreatingGlobalInvoice(true);
         setInvoiceForm(prev => ({
             ...prev,
-            invoiceNo: `INV-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000)}`,
+            invoiceNo: getNextInvoiceNumber(),
             clientName: '',
             kindAttn: '',
             clientAddress: '',
@@ -213,7 +253,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
         kindAttn: client.name,
         clientAddress: client.address || '',
         mailingAddress: client.address || '',
-        invoiceNo: `INV-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000)}`
+        invoiceNo: getNextInvoiceNumber()
      }));
   };
 
@@ -503,8 +543,17 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
         )}
         
         <div className="grid grid-cols-2 gap-4">
-            <input value={invoiceForm.invoiceNo} onChange={e => setInvoiceForm({...invoiceForm, invoiceNo: e.target.value})} placeholder="Invoice No" className="p-3 border rounded-xl text-sm" />
-            <input type="date" value={invoiceForm.date} onChange={e => setInvoiceForm({...invoiceForm, date: e.target.value})} className="p-3 border rounded-xl text-sm" />
+            <div>
+               <div className="flex items-center justify-between mb-1">
+                  <label className="text-[10px] font-bold uppercase text-slate-400">Invoice No</label>
+                  <button onClick={() => setInvoiceForm(prev => ({...prev, invoiceNo: getNextInvoiceNumber(true)}))} className="text-[9px] font-bold text-blue-600 hover:text-blue-800 uppercase flex items-center gap-1"><RefreshCw size={10}/> Reset FY</button>
+               </div>
+               <input value={invoiceForm.invoiceNo} onChange={e => setInvoiceForm({...invoiceForm, invoiceNo: e.target.value})} placeholder="Invoice No" className="w-full p-3 border rounded-xl text-sm" />
+            </div>
+            <div>
+               <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">Date</label>
+               <input type="date" value={invoiceForm.date} onChange={e => setInvoiceForm({...invoiceForm, date: e.target.value})} className="w-full p-3 border rounded-xl text-sm" />
+            </div>
         </div>
         <input value={invoiceForm.kindAttn} onChange={e => setInvoiceForm({...invoiceForm, kindAttn: e.target.value})} placeholder="Kind Attn" className="w-full p-3 border rounded-xl text-sm" />
         <textarea value={invoiceForm.clientAddress} onChange={e => setInvoiceForm({...invoiceForm, clientAddress: e.target.value})} placeholder="Client Address" className="w-full p-3 border rounded-xl text-sm h-20" />
@@ -529,160 +578,225 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
   );
 
   const renderFinanceTable = () => (
-    <div className="bg-white border border-slate-100 rounded-3xl overflow-hidden shadow-sm">
-       <table className="w-full text-left border-collapse">
-          <thead>
-             <tr className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-slate-50">
-                <th className="p-6">Invoice #</th>
-                <th className="p-6">Date</th>
-                <th className="p-6">Client</th>
-                <th className="p-6 text-right">Amount</th>
-                <th className="p-6 text-center">Status</th>
-                <th className="p-6 text-right">Actions</th>
-             </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-             {allInvoices.length === 0 ? (
-                <tr><td colSpan={6} className="p-8 text-center text-slate-400 italic">No invoices found.</td></tr>
-             ) : (
-                allInvoices.map(inv => (
-                   <tr key={inv.id} className="hover:bg-slate-50 transition-colors group">
-                      <td className="p-6 text-sm font-bold text-slate-700">{inv.title.replace('Invoice ', '')}</td>
-                      <td className="p-6 text-sm text-slate-500">{new Date(inv.date).toLocaleDateString()}</td>
-                      <td className="p-6 text-sm text-slate-700">
-                          {inv.invoiceDetails?.clientName || 'Unknown'}
-                      </td>
-                      <td className="p-6 text-sm font-bold text-right text-slate-900">{inv.amount}</td>
-                      <td className="p-6 text-center">
-                         <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${inv.status === 'Paid' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                            {inv.status}
-                         </span>
-                      </td>
-                      <td className="p-6 text-right flex justify-end gap-2">
-                         {/* Send Email Button */}
-                         <button 
-                            onClick={() => handleSendInvoiceEmail(inv)}
-                            className="p-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-200 text-[10px] font-bold uppercase flex items-center gap-1"
-                            title="Send Email"
-                         >
-                            {sendingMailId === inv.id ? <Loader2 size={14} className="animate-spin"/> : <Mail size={14}/>}
-                         </button>
+    <div className="space-y-8">
+        {/* Finance Stats */}
+        <div className="grid grid-cols-3 gap-6">
+            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+                <div className="p-3 bg-green-50 text-green-600 rounded-xl"><DollarSign size={24}/></div>
+                <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Total Revenue</p>
+                    <p className="text-2xl font-serif font-bold text-slate-900">₹{financeStats.revenue.toLocaleString()}</p>
+                </div>
+            </div>
+            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+                <div className="p-3 bg-yellow-50 text-yellow-600 rounded-xl"><Clock size={24}/></div>
+                <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Pending Receivables</p>
+                    <p className="text-2xl font-serif font-bold text-slate-900">₹{financeStats.pending.toLocaleString()}</p>
+                </div>
+            </div>
+            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+                <div className="p-3 bg-blue-50 text-blue-600 rounded-xl"><Receipt size={24}/></div>
+                <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Total Invoices</p>
+                    <p className="text-2xl font-serif font-bold text-slate-900">{financeStats.count}</p>
+                </div>
+            </div>
+        </div>
 
-                         {inv.status !== 'Paid' && (
-                             <button onClick={() => initiatePaymentRecord(inv)} className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 text-[10px] font-bold uppercase flex items-center gap-1">
-                                 <Banknote size={14}/> Record Pay
-                             </button>
-                         )}
-                         {/* View Invoice Action */}
-                         <button onClick={() => setViewInvoice({data: inv.invoiceDetails!, mode: 'invoice'})} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 text-[10px] font-bold uppercase flex items-center gap-1">
-                             <Eye size={14}/> View
-                         </button>
-                         {/* View Receipt Action - Only if Paid */}
-                         {inv.status === 'Paid' && (
-                             <button onClick={() => setViewInvoice({data: inv.invoiceDetails!, mode: 'receipt'})} className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 text-[10px] font-bold uppercase flex items-center gap-1">
-                                 <Receipt size={14}/> Receipt
-                             </button>
-                         )}
-                      </td>
-                   </tr>
-                ))
-             )}
-          </tbody>
-       </table>
+        <div className="bg-white border border-slate-100 rounded-3xl overflow-hidden shadow-sm">
+        <table className="w-full text-left border-collapse">
+            <thead>
+                <tr className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-slate-50">
+                    <th className="p-6">Invoice #</th>
+                    <th className="p-6">Date</th>
+                    <th className="p-6">Client</th>
+                    <th className="p-6 text-right">Amount</th>
+                    <th className="p-6 text-center">Status</th>
+                    <th className="p-6 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+                {allInvoices.length === 0 ? (
+                    <tr><td colSpan={6} className="p-8 text-center text-slate-400 italic">No invoices found.</td></tr>
+                ) : (
+                    allInvoices.map(inv => (
+                    <tr key={inv.id} className="hover:bg-slate-50 transition-colors group">
+                        <td className="p-6 text-sm font-bold text-slate-700">{inv.title.replace('Invoice ', '')}</td>
+                        <td className="p-6 text-sm text-slate-500">{new Date(inv.date).toLocaleDateString()}</td>
+                        <td className="p-6 text-sm text-slate-700">
+                            {inv.invoiceDetails?.clientName || 'Unknown'}
+                        </td>
+                        <td className="p-6 text-sm font-bold text-right text-slate-900">{inv.amount}</td>
+                        <td className="p-6 text-center">
+                            <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${inv.status === 'Paid' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                {inv.status}
+                            </span>
+                        </td>
+                        <td className="p-6 text-right flex justify-end gap-2">
+                            {/* Send Email Button */}
+                            <button 
+                                onClick={() => handleSendInvoiceEmail(inv)}
+                                className="p-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-200 text-[10px] font-bold uppercase flex items-center gap-1"
+                                title="Send Email"
+                            >
+                                {sendingMailId === inv.id ? <Loader2 size={14} className="animate-spin"/> : <Mail size={14}/>}
+                            </button>
+
+                            {inv.status !== 'Paid' && (
+                                <button onClick={() => initiatePaymentRecord(inv)} className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 text-[10px] font-bold uppercase flex items-center gap-1">
+                                    <Banknote size={14}/> Record Pay
+                                </button>
+                            )}
+                            {/* View Invoice Action */}
+                            <button onClick={() => setViewInvoice({data: inv.invoiceDetails!, mode: 'invoice'})} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 text-[10px] font-bold uppercase flex items-center gap-1">
+                                <Eye size={14}/> View
+                            </button>
+                            {/* View Receipt Action - Only if Paid */}
+                            {inv.status === 'Paid' && (
+                                <button onClick={() => setViewInvoice({data: inv.invoiceDetails!, mode: 'receipt'})} className="p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 text-[10px] font-bold uppercase flex items-center gap-1">
+                                    <Receipt size={14}/> Receipt
+                                </button>
+                            )}
+                        </td>
+                    </tr>
+                    ))
+                )}
+            </tbody>
+        </table>
+        </div>
     </div>
   );
 
-  // ... (Rest of component remains unchanged)
-  // [Render logic for Applications Table and Inquiries Table is unchanged]
+  // New Helper Function 1: Applications Table
   const renderApplicationsTable = () => (
     <div className="bg-white border border-slate-100 rounded-3xl overflow-hidden shadow-sm">
-       <table className="w-full text-left border-collapse">
-          <thead>
-             <tr className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-slate-50">
+      <table className="w-full text-left border-collapse">
+        <thead>
+            <tr className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-slate-50">
+                <th className="p-6">Date</th>
                 <th className="p-6">Candidate</th>
-                <th className="p-6">Role Applied</th>
-                <th className="p-6">Submission Date</th>
-                <th className="p-6">Resume</th>
-                <th className="p-6">Status</th>
-             </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-             {applications.length === 0 ? (
-                <tr><td colSpan={5} className="p-8 text-center text-slate-400 italic">No active applications in the pool.</td></tr>
-             ) : (
+                <th className="p-6">Role</th>
+                <th className="p-6 text-center">Resume</th>
+                <th className="p-6 text-center">Status</th>
+                <th className="p-6 text-right">Actions</th>
+            </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-50">
+            {applications.length === 0 ? (
+                <tr><td colSpan={6} className="p-8 text-center text-slate-400 italic">No applications found.</td></tr>
+            ) : (
                 applications.map(app => (
-                   <tr key={app.id} className="hover:bg-slate-50 transition-colors group">
-                      <td className="p-6">
-                         <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden flex items-center justify-center text-slate-500 font-bold">
-                               {app.data.personal.photo ? <img src={app.data.personal.photo} className="w-full h-full object-cover"/> : app.data.personal.name.charAt(0)}
-                            </div>
-                            <div>
-                               <p className="font-bold text-slate-900">{app.data.personal.name}</p>
-                               <p className="text-[11px] text-slate-500">{app.data.personal.email}</p>
-                            </div>
-                         </div>
-                      </td>
-                      <td className="p-6 text-sm text-slate-700">{app.jobTitle}</td>
-                      <td className="p-6 text-sm text-slate-500">{new Date(app.submittedDate).toLocaleDateString()}</td>
-                      <td className="p-6">
-                         {app.data.resumeUrl ? (
-                            <a href="#" className="text-blue-600 hover:underline text-xs font-bold uppercase tracking-wide flex items-center gap-1"><FileText size={14}/> View CV</a>
-                         ) : <span className="text-slate-300 text-xs">Not Attached</span>}
-                      </td>
-                      <td className="p-6">
-                         <select 
-                           value={app.status}
-                           onChange={(e) => contentService.updateApplicationStatus(app.id, e.target.value as any)}
-                           className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest border-none outline-none cursor-pointer ${app.status === 'Received' ? 'bg-blue-50 text-blue-600' : app.status === 'Interview' ? 'bg-orange-50 text-orange-600' : app.status === 'Offered' ? 'bg-green-50 text-green-600' : 'bg-slate-100 text-slate-600'}`}
-                         >
+                <tr key={app.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="p-6 text-sm text-slate-500">{new Date(app.submittedDate).toLocaleDateString()}</td>
+                    <td className="p-6">
+                        <p className="text-sm font-bold text-slate-900">{app.data.personal.name}</p>
+                        <p className="text-xs text-slate-400">{app.data.personal.email}</p>
+                    </td>
+                    <td className="p-6 text-sm text-slate-700">{app.jobTitle}</td>
+                    <td className="p-6 text-center">
+                        {app.data.resumeUrl && app.data.resumeUrl !== 'Not Attached' ? (
+                            <span className="text-xs font-bold text-blue-600 uppercase bg-blue-50 px-2 py-1 rounded">Attached</span>
+                        ) : <span className="text-xs text-slate-300">N/A</span>}
+                    </td>
+                    <td className="p-6 text-center">
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
+                            app.status === 'Received' ? 'bg-blue-50 text-blue-600' : 
+                            app.status === 'Under Review' ? 'bg-orange-50 text-orange-600' : 
+                            app.status === 'Rejected' ? 'bg-red-50 text-red-600' :
+                            'bg-green-50 text-green-600'
+                        }`}>
+                            {app.status}
+                        </span>
+                    </td>
+                    <td className="p-6 text-right">
+                        <select 
+                            value={app.status}
+                            onChange={(e) => contentService.updateApplicationStatus(app.id, e.target.value as any)}
+                            className="p-2 border rounded text-xs bg-white"
+                        >
                             <option>Received</option>
                             <option>Under Review</option>
                             <option>Interview</option>
                             <option>Offered</option>
                             <option>Rejected</option>
-                         </select>
-                      </td>
-                   </tr>
+                        </select>
+                    </td>
+                </tr>
                 ))
-             )}
-          </tbody>
-       </table>
+            )}
+        </tbody>
+      </table>
     </div>
   );
 
-  const renderInquiriesTable = (typeFilter: string) => {
-     const data = inquiries.filter(i => typeFilter === 'rfp' ? i.type !== 'appointment' : i.type === 'appointment');
-     return (
-        <div className="grid grid-cols-1 gap-4">
-           {data.length === 0 ? (
-              <div className="p-12 text-center text-slate-400 italic bg-white rounded-2xl border border-slate-100">No active items in this category.</div>
-           ) : (
-              data.map(item => (
-                 <div key={item.id} className="p-6 bg-white border border-slate-100 rounded-2xl hover:shadow-md transition-all flex justify-between items-center">
-                    <div className="flex items-center gap-4">
-                       <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${item.type === 'appointment' ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'}`}>
-                          {item.type === 'appointment' ? <Calendar size={20}/> : <Inbox size={20}/>}
-                       </div>
-                       <div>
-                          <p className="font-bold text-slate-900">{item.name}</p>
-                          <p className="text-[11px] uppercase tracking-wider text-slate-500">{item.type === 'appointment' ? `${new Date(item.details.date).toLocaleDateString()} @ ${item.details.time.hour}:${item.details.time.minute} ${item.details.time.period}` : item.details.companyName || 'General Inquiry'}</p>
-                       </div>
-                    </div>
-                    <div className="flex items-center gap-6">
-                       <div className="text-right">
-                          <p className="text-xs text-slate-400">{new Date(item.date).toLocaleDateString()}</p>
-                          <span className={`text-[9px] font-bold uppercase px-2 py-1 rounded-md ${item.status === 'new' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>{item.status}</span>
-                       </div>
-                       <button onClick={() => contentService.updateInquiryStatus(item.id, 'reviewed')} className="p-2 bg-slate-50 hover:bg-slate-200 rounded-full transition-colors"><CheckCircle size={18} className="text-slate-400 hover:text-green-600"/></button>
-                    </div>
-                 </div>
-              ))
-           )}
+  // New Helper Function 2: Inquiries Table
+  const renderInquiriesTable = (type: 'appointment' | 'rfp') => {
+      const filtered = inquiries.filter(i => i.type === type);
+      return (
+        <div className="bg-white border border-slate-100 rounded-3xl overflow-hidden shadow-sm">
+            <table className="w-full text-left border-collapse">
+                <thead>
+                    <tr className="border-b border-slate-100 text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-slate-50">
+                        <th className="p-6">ID / Date</th>
+                        <th className="p-6">Contact</th>
+                        <th className="p-6">Details</th>
+                        <th className="p-6 text-center">Status</th>
+                        <th className="p-6 text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                    {filtered.length === 0 ? (
+                        <tr><td colSpan={5} className="p-8 text-center text-slate-400 italic">No records found.</td></tr>
+                    ) : (
+                        filtered.map(item => (
+                        <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="p-6">
+                                <p className="text-xs font-bold text-slate-900">{item.uniqueId}</p>
+                                <p className="text-xs text-slate-400">{new Date(item.date).toLocaleDateString()}</p>
+                            </td>
+                            <td className="p-6">
+                                <p className="text-sm font-bold text-slate-900">{item.name}</p>
+                                <p className="text-xs text-slate-400">{item.email}</p>
+                            </td>
+                            <td className="p-6 text-sm text-slate-600">
+                                {type === 'appointment' ? (
+                                    <>
+                                        <p><span className="font-bold">Branch:</span> {item.details.branch}</p>
+                                        <p><span className="font-bold">Time:</span> {item.details.time.hour}:{item.details.time.minute} {item.details.time.period}</p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <p><span className="font-bold">Org:</span> {item.details.organization}</p>
+                                        <p><span className="font-bold">Category:</span> {item.details.category}</p>
+                                    </>
+                                )}
+                            </td>
+                            <td className="p-6 text-center">
+                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${item.status === 'new' ? 'bg-green-50 text-green-600' : 'bg-slate-100 text-slate-500'}`}>
+                                    {item.status}
+                                </span>
+                            </td>
+                            <td className="p-6 text-right">
+                                {item.status === 'new' && (
+                                    <button 
+                                        onClick={() => contentService.updateInquiryStatus(item.id, 'reviewed')}
+                                        className="text-[10px] font-bold uppercase text-blue-600 hover:text-blue-800"
+                                    >
+                                        Mark Reviewed
+                                    </button>
+                                )}
+                            </td>
+                        </tr>
+                        ))
+                    )}
+                </tbody>
+            </table>
         </div>
-     );
+      );
   };
 
+  // ... rest of the component
   return (
     <div className={`flex h-screen overflow-hidden ${isDarkMode ? 'bg-[#0A0B0E]' : 'bg-[#F4F7FE]'}`}>
       {viewInvoice && <InvoiceRenderer data={viewInvoice.data} mode={viewInvoice.mode} onClose={() => setViewInvoice(null)} />}
@@ -930,7 +1044,6 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
            </div>
         )}
 
-        {/* ... (Existing Clients List & Client Manager - Unchanged) ... */}
         {/* --- CLIENTS LIST --- */}
         {activeTab === 'clients' && !managingClient && !invitingClient && (
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
