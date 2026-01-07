@@ -665,7 +665,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
   const handleCreateDigitalInvoice = async () => {
      const targetClientId = creatingGlobalInvoice ? selectedClientForInvoice : managingClient?.uid;
      if (!targetClientId) { alert("Please select a client."); return; }
-     // Fix: correctly handle client selection with ternary operator to resolve scope and identification logic
+     
      const targetClient = creatingGlobalInvoice ? premierClients.find(c => c.uid === targetClientId) : managingClient;
      if (!targetClient) { alert("Client identification failed."); return; }
 
@@ -1029,7 +1029,6 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
                 </div>
              )}
              
-             {/* RENDER OTHER TABS SIMILARLY */}
              {activeTab === 'applications' && (
                 <div className="bg-white border border-slate-100 rounded-3xl overflow-hidden shadow-sm">
                   <table className="w-full text-left border-collapse">
@@ -1100,8 +1099,8 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
                                   <div className="flex items-center gap-4"><div className={`w-10 h-10 rounded-lg flex items-center justify-center ${doc.type === 'invoice' ? (doc.status === 'Paid' ? 'bg-green-50 text-green-600' : 'bg-yellow-50 text-yellow-600') : 'bg-blue-50 text-blue-600'}`}>{doc.type === 'invoice' ? <Receipt size={20}/> : <FileText size={20}/>}</div><div><h4 className="font-serif text-slate-900">{doc.title}</h4><p className="text-[10px] uppercase text-slate-400">{new Date(doc.date).toLocaleDateString()} • {doc.status || 'Archived'}</p></div></div>
                                   <div className="flex items-center gap-3">
                                      {doc.type === 'invoice' && doc.status !== 'Paid' && <button onClick={() => initiatePaymentRecord(doc)} className="p-2 text-green-600 bg-green-50 rounded-lg hover:bg-green-100" title="Record Payment"><Banknote size={16}/></button>}
-                                     {doc.type === 'invoice' && (<><button onClick={() => handleSendInvoiceEmail(doc)} className="p-2 text-slate-400 hover:text-slate-900 bg-slate-50 rounded-lg" title="Email Invoice"><Mail size={16}/></button>{doc.invoiceDetails && <button onClick={() => setViewInvoice({data: doc.invoiceDetails!, mode: 'invoice'})} className="p-2 text-blue-500 hover:text-blue-700 bg-blue-50 rounded-lg" title="View"><Eye size={16}/></button>}{doc.status === 'Paid' && doc.invoiceDetails && <button onClick={() => setViewInvoice({data: inv.invoiceDetails!, mode: 'receipt'})} className="p-2 text-slate-500 hover:text-slate-700 bg-slate-100 rounded-lg" title="Receipt"><Receipt size={16}/></button>}</>)}
-                                     {doc.url && <a href={doc.url} download className="p-3 bg-black rounded-xl text-slate-400 hover:text-white transition-colors"><Download size={18}/></a>}
+                                     {doc.type === 'invoice' && (<><button onClick={() => handleSendInvoiceEmail(doc)} className="p-2 text-slate-400 hover:text-slate-900 bg-slate-50 rounded-lg" title="Email Invoice"><Mail size={16}/></button>{doc.invoiceDetails && <button onClick={() => setViewInvoice({data: doc.invoiceDetails!, mode: 'invoice'})} className="p-2 text-blue-500 hover:text-blue-700 bg-blue-50 rounded-lg" title="View"><Eye size={16}/></button>}{doc.status === 'Paid' && doc.invoiceDetails && <button onClick={() => setViewInvoice({data: doc.invoiceDetails!, mode: 'receipt'})} className="p-2 text-slate-500 hover:text-slate-700 bg-slate-100 rounded-lg" title="Receipt"><Receipt size={16}/></button>}</>)}
+                                     {doc.url && <a href={doc.url} download className="p-2 text-slate-400 hover:text-slate-900 bg-slate-50 rounded-lg"><Download size={16}/></a>}
                                      <button onClick={() => contentService.deleteClientDocument(doc.id)} className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 rounded-lg"><Trash2 size={16}/></button>
                                   </div>
                                </div>

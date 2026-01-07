@@ -3,7 +3,6 @@ import { GoogleGenAI, Type } from "@google/genai";
 
 export const analyzeLegalQuery = async (query: string) => {
   try {
-    // Initialize GoogleGenAI directly with the pre-configured process.env.API_KEY
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     const response = await ai.models.generateContent({
@@ -38,14 +37,11 @@ export const parseResume = async (base64Data: string, mimeType: string) => {
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
-    // Ensure we strip the data URL prefix if present (e.g., "data:application/pdf;base64,")
     const dataParts = base64Data.split(',');
     const rawBase64 = dataParts.length > 1 ? dataParts[1] : dataParts[0];
 
     const response = await ai.models.generateContent({
-      // Updated to gemini-3-flash-preview for better compliance and reliability
       model: "gemini-3-flash-preview",
-      // Fixed: Use object with parts array format for contents
       contents: {
         parts: [
           {
