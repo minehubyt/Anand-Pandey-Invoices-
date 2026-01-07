@@ -15,11 +15,9 @@ import {
 } from "firebase/firestore";
 import { initializeApp, getApp, getApps, deleteApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth";
-// Removed storage imports as we are switching to Base64 storage
 import { db } from "../firebase";
-import { HeroContent, Insight, Author, OfficeLocation, Inquiry, Job, JobApplication, UserProfile, ClientDocument, PaymentRecord } from '../types';
+import { HeroContent, Insight, Author, OfficeLocation, Inquiry, Job, JobApplication, UserProfile, ClientDocument, PaymentRecord, InvoiceItemLibrary } from '../types';
 
-// Re-declare config for secondary app usage
 const firebaseConfig = {
   apiKey: "AIzaSyCSoV1SsHB-0Ue-OcWXhh41lbek4URuHAg",
   authDomain: "anandpandeyindia.firebaseapp.com",
@@ -41,17 +39,16 @@ const COLLECTIONS = {
   JOBS: 'jobs',
   APPLICATIONS: 'applications',
   USERS: 'users',
-  DOCUMENTS: 'client_docs'
+  DOCUMENTS: 'client_docs',
+  ITEM_LIBRARY: 'item_library'
 };
 
 export const contentService = {
   seedData: async () => {
     try {
-      // 1. Seed Hero
       const heroRef = doc(db, COLLECTIONS.HERO, 'main');
       const heroSnap = await getDoc(heroRef);
       if (!heroSnap.exists()) {
-        console.log("Seeding Hero Data...");
         await setDoc(heroRef, {
           headline: "Strategic Legal Counsel for a Complex World",
           subtext: "Providing precise legal strategy and uncompromising advocacy for global enterprises and individuals.",
@@ -60,170 +57,57 @@ export const contentService = {
         });
       }
 
-      // 2. Seed Insights (if empty)
-      const insightsRef = collection(db, COLLECTIONS.INSIGHTS);
-      const insightsSnap = await getDocs(insightsRef);
-      if (insightsSnap.empty) {
-        console.log("Seeding Insights Data...");
-        const sampleInsights = [
-          {
-            type: 'insights',
-            category: 'LEGAL UPDATE',
-            title: "The Future of AI Regulation in India",
-            desc: "Analyzing the proposed Digital India Act and its impact on large language models and generative AI enterprises.",
-            date: new Date().toISOString(),
-            image: "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&q=80&w=800",
-            isFeatured: true,
-            showInHero: true
-          },
-          {
-            type: 'reports',
-            category: 'ANNUAL REPORT',
-            title: "Global Litigation Trends 2025",
-            desc: "A comprehensive review of cross-border dispute resolution mechanisms and the rise of commercial arbitration.",
-            date: new Date(Date.now() - 86400000 * 2).toISOString(),
-            image: "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&q=80&w=800",
-            isFeatured: true,
-            showInHero: false
-          },
-          {
-            type: 'casestudy',
-            category: 'CASE STUDY',
-            title: "Infrastructure Arbitration Victory",
-            desc: "Securing a ₹500 Cr award for a leading construction conglomerate against a state entity.",
-            date: new Date(Date.now() - 86400000 * 5).toISOString(),
-            image: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=800",
-            isFeatured: false,
-            showInHero: false
-          },
-          {
-             type: 'podcasts',
-             category: 'LEGAL PODCAST',
-             title: "Ep 4: White Collar Defense Strategies",
-             desc: "A deep dive into PMLA provisions and defense tactics with Senior Counsel AK Pandey.",
-             date: new Date(Date.now() - 86400000 * 10).toISOString(),
-             image: "https://images.unsplash.com/photo-1478737270239-2f02b77ac618?auto=format&fit=crop&q=80&w=800",
-             season: "1",
-             episode: "4",
-             isFeatured: false,
-             showInHero: true
-          }
+      const itemsRef = collection(db, COLLECTIONS.ITEM_LIBRARY);
+      const itemsSnap = await getDocs(itemsRef);
+      if (itemsSnap.empty) {
+        const defaultItems = [
+          { code: 'LCON', description: 'Legal Consultation - Senior Counsel', defaultAmount: 25000 },
+          { code: 'DRAF', description: 'Legal Drafting & Review', defaultAmount: 15000 },
+          { code: 'HCAP', description: 'High Court Appearance', defaultAmount: 50000 }
         ];
-        for (const item of sampleInsights) {
-          await addDoc(insightsRef, item);
+        for (const item of defaultItems) {
+          await addDoc(itemsRef, item);
         }
       }
-
-      // 3. Seed Jobs
-      const jobsRef = collection(db, COLLECTIONS.JOBS);
-      const jobsSnap = await getDocs(jobsRef);
-      if (jobsSnap.empty) {
-         console.log("Seeding Jobs Data...");
-         await addDoc(jobsRef, {
-            title: "Senior Associate - Litigation",
-            department: "Litigation",
-            location: "New Delhi",
-            description: "Seeking an experienced litigator with 5+ years of High Court practice.",
-            postedDate: new Date().toISOString(),
-            status: "active"
-         });
-      }
-
-      // 4. Seed Offices
-      const officesRef = collection(db, COLLECTIONS.OFFICES);
-      const officesSnap = await getDocs(officesRef);
-      if (officesSnap.empty) {
-         console.log("Seeding Offices Data...");
-         await addDoc(officesRef, {
-            city: 'New Delhi',
-            address: 'High Court Chambers, Shanti Path, New Delhi, 110001',
-            phone: '+91 11 2345 6789',
-            email: 'delhi@anandpandey.in',
-            coordinates: { lat: 28.6139, lng: 77.2090 },
-            image: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=1200'
-         });
-         await addDoc(officesRef, {
-            city: 'Ranchi',
-            address: '2nd Floor, Tara Kunj Complex, Khelgoan Chowk, Ranchi, Jharkhand - 835217',
-            phone: '+91 91101 5484',
-            email: 'ranchi@anandpandey.in',
-            coordinates: { lat: 23.3750, lng: 85.3550 },
-            image: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=1200'
-         });
-      }
-
     } catch (err) {
       console.error("Content Seeding Error:", err);
     }
   },
 
-  // --- SMART HIGH-QUALITY COMPRESSION ---
   uploadImage: async (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
-      
       reader.onload = (event) => {
         const img = new Image();
         img.src = event.target?.result as string;
-        
         img.onload = () => {
           const canvas = document.createElement('canvas');
           let width = img.width;
           let height = img.height;
-
-          // 1. Maintain High Definition (Full HD / 2K) if possible
           const MAX_WIDTH = 1920; 
           const MAX_HEIGHT = 1920;
-
           if (width > height) {
-            if (width > MAX_WIDTH) {
-              height *= MAX_WIDTH / width;
-              width = MAX_WIDTH;
-            }
+            if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
           } else {
-            if (height > MAX_HEIGHT) {
-              width *= MAX_HEIGHT / height;
-              height = MAX_HEIGHT;
-            }
+            if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
           }
-
-          canvas.width = width;
-          canvas.height = height;
-          
+          canvas.width = width; canvas.height = height;
           const ctx = canvas.getContext('2d');
-          if (!ctx) {
-             reject(new Error("Browser canvas context failed"));
-             return;
-          }
-          
-          // High quality smoothing
-          ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = 'high';
+          if (!ctx) { reject(new Error("Browser canvas context failed")); return; }
+          ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
           ctx.drawImage(img, 0, 0, width, height);
-          
-          // 2. Iterative Compression to fit Firestore (Limit approx 1MB or 1,048,576 bytes)
-          // We target 950KB to be safe.
           const SAFETY_LIMIT = 950000;
-          let quality = 0.9; // Start at 90% quality
+          let quality = 0.9;
           let dataUrl = canvas.toDataURL('image/jpeg', quality);
-          
-          // Loop: Reduce quality by 10% until it fits, but stop at 10% lowest
           while (dataUrl.length > SAFETY_LIMIT && quality > 0.1) {
              quality -= 0.1;
              dataUrl = canvas.toDataURL('image/jpeg', quality);
           }
-          
           resolve(dataUrl);
         };
-        
-        img.onerror = (err) => reject(new Error("Failed to load image for compression"));
       };
-      
-      reader.onerror = (err) => {
-        console.error("FileReader Error:", err);
-        reject(new Error("Failed to read file"));
-      };
+      reader.onerror = (err) => reject(new Error("Failed to read file"));
     });
   },
 
@@ -236,17 +120,12 @@ export const contentService = {
     return snap.exists() ? snap.data() as UserProfile : null;
   },
 
-  // --- CRM & ADMIN CLIENT MANAGEMENT ---
-
   createPremierUser: async (clientData: { email: string, password?: string, name: string, companyName: string, mobile: string, address: string }) => {
     const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp");
     const secondaryAuth = getAuth(secondaryApp);
-
     try {
-      // Try to create user
       const userCredential = await createUserWithEmailAndPassword(secondaryAuth, clientData.email, clientData.password || 'Welcome@123');
       const uid = userCredential.user.uid;
-
       await setDoc(doc(db, COLLECTIONS.USERS, uid), {
         uid,
         email: clientData.email,
@@ -257,18 +136,14 @@ export const contentService = {
         role: 'premier',
         createdAt: new Date().toISOString()
       });
-
       await signOut(secondaryAuth);
       await deleteApp(secondaryApp);
       return uid;
-
     } catch (error: any) {
       try { await deleteApp(secondaryApp); } catch(e) {} 
-
       if (error.code === 'auth/email-already-in-use') {
          const q = query(collection(db, COLLECTIONS.USERS), where("email", "==", clientData.email));
          const snap = await getDocs(q);
-         
          if (!snap.empty) {
             const existingDoc = snap.docs[0];
             await updateDoc(doc(db, COLLECTIONS.USERS, existingDoc.id), {
@@ -279,16 +154,10 @@ export const contentService = {
                address: clientData.address
             });
             return existingDoc.id;
-         } else {
-            throw new Error("User exists in Auth but has no profile. Please ask user to login first.");
          }
       }
       throw error;
     }
-  },
-
-  invitePremierClient: async (clientData: any) => {
-     return await contentService.createPremierUser({ ...clientData, password: clientData.password || 'Welcome@123' });
   },
 
   getPremierClients: (callback: (clients: UserProfile[]) => void) => {
@@ -306,21 +175,18 @@ export const contentService = {
     await deleteDoc(doc(db, COLLECTIONS.USERS, uid));
   },
 
-  // Documents
   subscribeClientDocuments: (userId: string, callback: (docs: ClientDocument[]) => void) => {
     return onSnapshot(collection(db, COLLECTIONS.DOCUMENTS), (snapshot) => {
       const allDocs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ClientDocument));
-      const clientDocs = allDocs.filter(d => d.userId === userId && !d.archived); // Filter archived
+      const clientDocs = allDocs.filter(d => d.userId === userId && !d.archived);
       clientDocs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       callback(clientDocs);
     });
   },
 
-  // Add this new method to get ALL invoices for the admin finance tab
   subscribeAllInvoices: (callback: (docs: ClientDocument[]) => void) => {
     return onSnapshot(collection(db, COLLECTIONS.DOCUMENTS), (snapshot) => {
       const allDocs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ClientDocument));
-      // Filter only invoices and sort by date descending. NOTE: Admin receives ALL invoices, including archived, but UI filters.
       const invoices = allDocs.filter(d => d.type === 'invoice');
       invoices.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       callback(invoices);
@@ -332,23 +198,34 @@ export const contentService = {
   },
 
   updateDocumentStatus: async (docId: string, status: string, paymentDetails?: PaymentRecord, archived: boolean = false) => {
-    // We first get the current document to merge payment details into invoiceDetails if it exists
     const docRef = doc(db, COLLECTIONS.DOCUMENTS, docId);
     const docSnap = await getDoc(docRef);
-    
     if (docSnap.exists()) {
         const currentData = docSnap.data() as ClientDocument;
         const updatedInvoiceDetails = currentData.invoiceDetails ? {
             ...currentData.invoiceDetails,
-            payment: paymentDetails
+            ...(paymentDetails ? { payment: paymentDetails } : {})
         } : undefined;
-
         await updateDoc(docRef, { 
             status,
-            archived, // Update archived status
+            archived,
             ...(paymentDetails && { paymentDate: paymentDetails.date }),
             ...(updatedInvoiceDetails && { invoiceDetails: updatedInvoiceDetails })
         });
+    }
+  },
+
+  revokeInvoice: async (docId: string) => {
+    const docRef = doc(db, COLLECTIONS.DOCUMENTS, docId);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      const currentData = docSnap.data() as ClientDocument;
+      if (currentData.invoiceDetails) {
+        await updateDoc(docRef, {
+          status: 'Canceled',
+          'invoiceDetails.isRevoked': true
+        });
+      }
     }
   },
 
@@ -356,30 +233,40 @@ export const contentService = {
     await deleteDoc(doc(db, COLLECTIONS.DOCUMENTS, id));
   },
 
-  // --- STANDARD EXISTING METHODS ---
+  // Library Items
+  subscribeItemLibrary: (callback: (items: InvoiceItemLibrary[]) => void) => {
+    return onSnapshot(collection(db, COLLECTIONS.ITEM_LIBRARY), (snapshot) => {
+      callback(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as InvoiceItemLibrary)));
+    });
+  },
 
+  saveLibraryItem: async (item: InvoiceItemLibrary) => {
+    const { id, ...data } = item;
+    if (id) await setDoc(doc(db, COLLECTIONS.ITEM_LIBRARY, id), data);
+    else await addDoc(collection(db, COLLECTIONS.ITEM_LIBRARY), data);
+  },
+
+  deleteLibraryItem: async (id: string) => {
+    await deleteDoc(doc(db, COLLECTIONS.ITEM_LIBRARY, id));
+  },
+
+  // Standard Methods
   subscribeHero: (callback: (hero: HeroContent) => void) => {
     return onSnapshot(doc(db, COLLECTIONS.HERO, 'main'), (docSnap) => {
       if (docSnap.exists()) callback({ id: docSnap.id, ...docSnap.data() } as HeroContent);
-    }, (error) => console.error("Hero Subscription Error:", error));
+    });
   },
 
   saveHero: async (hero: Partial<HeroContent>) => {
-    try {
-      await setDoc(doc(db, COLLECTIONS.HERO, 'main'), hero, { merge: true });
-    } catch (error) {
-      console.error("Firestore Hero Save Error:", error);
-      throw error; 
-    }
+    await setDoc(doc(db, COLLECTIONS.HERO, 'main'), hero, { merge: true });
   },
 
   subscribeJobs: (callback: (jobs: Job[]) => void) => {
     return onSnapshot(collection(db, COLLECTIONS.JOBS), (snapshot) => {
       const allJobs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Job));
-      // Sort by postedDate descending to ensure latest jobs come first
       allJobs.sort((a, b) => new Date(b.postedDate).getTime() - new Date(a.postedDate).getTime());
       callback(allJobs.filter(j => j.status === 'active'));
-    }, (error) => console.error("Jobs Subscription Error:", error));
+    });
   },
 
   saveJob: async (job: Job) => {
@@ -404,7 +291,6 @@ export const contentService = {
   subscribeAllApplications: (callback: (apps: JobApplication[]) => void) => {
     return onSnapshot(collection(db, COLLECTIONS.APPLICATIONS), (snapshot) => {
       const apps = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as JobApplication));
-      // Sort by submittedDate descending to ensure latest applications come first
       apps.sort((a, b) => new Date(b.submittedDate).getTime() - new Date(a.submittedDate).getTime());
       callback(apps);
     });
@@ -423,7 +309,7 @@ export const contentService = {
       const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Insight));
       data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       callback(data);
-    }, (error) => console.error("Insights Subscription Error:", error));
+    });
   },
   
   subscribeHeroInsights: (callback: (insights: Insight[]) => void) => {
@@ -432,7 +318,7 @@ export const contentService = {
       const heroItems = allInsights.filter(i => i.showInHero === true);
       heroItems.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       callback(heroItems);
-    }, (error) => console.error("Hero Insights Subscription Error:", error));
+    });
   },
   
   subscribeFeaturedInsights: (callback: (insights: Insight[]) => void) => {

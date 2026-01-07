@@ -107,6 +107,14 @@ export interface InvoiceLineItem {
   id: string;
   description: string;
   amount: number;
+  itemCode?: string;
+}
+
+export interface InvoiceItemLibrary {
+  id: string;
+  code: string;
+  description: string;
+  defaultAmount?: number;
 }
 
 export interface PaymentRecord {
@@ -139,6 +147,7 @@ export interface InvoiceDetails {
   payment?: PaymentRecord;
   signatureImage?: string; // For manual signature image
   digitalSignature?: DigitalSignature; // For DSC
+  isRevoked?: boolean;
 }
 
 export interface ClientDocument {
@@ -150,7 +159,7 @@ export interface ClientDocument {
   uploadedBy: 'admin' | 'client';
   date: string;
   amount?: string; // For invoices
-  status?: 'Paid' | 'Pending' | 'Overdue'; // For invoices
+  status?: 'Paid' | 'Pending' | 'Overdue' | 'Canceled'; // Added Canceled
   invoiceDetails?: InvoiceDetails;
   archived?: boolean; // For Financial Year Resets
 }
