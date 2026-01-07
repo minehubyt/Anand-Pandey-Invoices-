@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 
 export const analyzeLegalQuery = async (query: string) => {
@@ -42,23 +43,22 @@ export const parseResume = async (base64Data: string, mimeType: string) => {
     const rawBase64 = dataParts.length > 1 ? dataParts[1] : dataParts[0];
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash-exp",
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              inlineData: {
-                mimeType: mimeType,
-                data: rawBase64
-              }
-            },
-            {
-              text: "Extract the following details from this resume document: Name, Email, Mobile Number, Education Summary, Professional Experience Summary, and Interests. Return as JSON."
+      // Updated to gemini-3-flash-preview for better compliance and reliability
+      model: "gemini-3-flash-preview",
+      // Fixed: Use object with parts array format for contents
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              mimeType: mimeType,
+              data: rawBase64
             }
-          ]
-        }
-      ],
+          },
+          {
+            text: "Extract the following details from this resume document: Name, Email, Mobile Number, Education Summary, Professional Experience Summary, and Interests. Return as JSON."
+          }
+        ]
+      },
       config: {
         responseMimeType: "application/json",
         responseSchema: {

@@ -273,6 +273,7 @@ export const contentService = {
             const existingDoc = snap.docs[0];
             await updateDoc(doc(db, COLLECTIONS.USERS, existingDoc.id), {
                role: 'premier',
+               name: clientData.name,
                companyName: clientData.companyName,
                mobile: clientData.mobile,
                address: clientData.address
@@ -299,6 +300,10 @@ export const contentService = {
 
   updateClientProfile: async (uid: string, data: Partial<UserProfile>) => {
     await updateDoc(doc(db, COLLECTIONS.USERS, uid), data);
+  },
+
+  deleteClientProfile: async (uid: string) => {
+    await deleteDoc(doc(db, COLLECTIONS.USERS, uid));
   },
 
   // Documents

@@ -121,7 +121,7 @@ const EditorModal: React.FC<{
   
   const renderFields = () => {
     return Object.keys(entity).map((key) => {
-      if (['id', 'uniqueId', 'uploadedBy', 'status'].includes(key)) return null;
+      if (['id', 'uniqueId', 'uploadedBy', 'status', 'uid', 'createdAt', 'assignedAdvocate', 'role'].includes(key)) return null;
       if (key === 'coordinates') return null;
 
       if (['isFeatured', 'showInHero'].includes(key)) {
@@ -215,7 +215,7 @@ const EditorModal: React.FC<{
     <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
        <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-reveal-up">
           <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-             <h3 className="text-xl font-serif text-slate-900">Edit {tab.slice(0, -1).toUpperCase()}</h3>
+             <h3 className="text-xl font-serif text-slate-900">Edit {tab === 'clients' ? 'CLIENT' : tab.slice(0, -1).toUpperCase()}</h3>
              <button onClick={onCancel}><X size={20} className="text-slate-400 hover:text-slate-900"/></button>
           </div>
           <div className="p-8 overflow-y-auto custom-scrollbar flex-1 bg-[#FAFAFA]">
@@ -231,7 +231,6 @@ const EditorModal: React.FC<{
 };
 
 // --- MOCK ADOBE-STYLE DSC SCANNER ---
-// Uses dummy data to simulate the exact experience of having a connected token.
 const DSCSigningModal: React.FC<{
   onClose: () => void;
   onSign: (details: any) => void;
@@ -242,7 +241,6 @@ const DSCSigningModal: React.FC<{
   const [isSigning, setIsSigning] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Mock Certificates exactly as requested
   const certificates = [
     {
       id: 'cert-1',
@@ -278,7 +276,6 @@ const DSCSigningModal: React.FC<{
     setIsSigning(true);
     setErrorMsg('');
 
-    // Simulate Processing Delay
     setTimeout(() => {
         const selectedCert = certificates.find(c => c.id === selectedId);
         if (selectedCert) {
@@ -299,7 +296,6 @@ const DSCSigningModal: React.FC<{
     <div className="fixed inset-0 z-[300] bg-black/50 flex items-center justify-center p-4 font-sans backdrop-blur-sm">
       <div className="bg-white w-full max-w-[600px] shadow-2xl rounded-md flex flex-col overflow-hidden animate-scale-out" style={{ fontFamily: 'Segoe UI, sans-serif' }}>
         
-        {/* HEADER */}
         <div className="flex justify-between items-center px-4 py-3 border-b border-gray-300 bg-white">
           <h3 className="text-[15px] font-semibold text-gray-800">Sign with Digital ID</h3>
           <div className="flex items-center gap-2">
@@ -308,7 +304,6 @@ const DSCSigningModal: React.FC<{
           </div>
         </div>
 
-        {/* BODY */}
         <div className="p-0 bg-white min-h-[350px] flex flex-col relative">
           
           {step === 'select' && (
@@ -475,15 +470,18 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
     return { revenue, pending, count };
   }, [allInvoices]);
 
-  const getNextInvoiceNumber = (forceReset = false) => {
+  const getNextInvoiceNumber = () => {
     const currentYear = new Date().getFullYear();
-    const pattern = new RegExp(`INV-${currentYear}-(\\d+)`);
-    let maxSeq = 0;
+    const pattern = new RegExp(`INV-(\\d+)-(\\d+)`);
+    let maxSeq = 549; // User requirement: Start from 550
+    
     allInvoices.forEach(inv => {
         if (inv.invoiceDetails?.invoiceNo) {
             const match = inv.invoiceDetails.invoiceNo.match(pattern);
             if (match) {
-                const seq = parseInt(match[1], 10);
+                // We check the second capture group which is the sequence number
+                // This ensures sequence is global and doesn't reset per year
+                const seq = parseInt(match[2], 10);
                 if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
             }
         }
@@ -577,7 +575,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
   };
 
   const handleEndFinancialYear = async () => {
-      if (!confirm("CONFIRM FINANCIAL YEAR CLOSURE?\n\nThis action will archive all current invoices.")) return;
+      if (!confirm("CONFIRM FINANCIAL YEAR CLOSURE?\n\nThis action will archive all current invoices. Note: Invoice numbers will NOT reset to zero and will continue the current sequence.")) return;
       setIsSaving(true);
       try {
           const activeInvoices = allInvoices.filter(i => !i.archived && i.type === 'invoice');
@@ -595,10 +593,22 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-        if (invitingClient) {
-           await contentService.createPremierUser(activeEntity);
-           await emailService.sendPremierInvitation(activeEntity);
-           setInvitingClient(false);
+        if (activeTab === 'clients') {
+            if (activeEntity.uid) {
+                // Editing existing client
+                await contentService.updateClientProfile(activeEntity.uid, {
+                    name: activeEntity.name,
+                    companyName: activeEntity.companyName,
+                    mobile: activeEntity.mobile,
+                    address: activeEntity.address,
+                    email: activeEntity.email
+                });
+            } else {
+                // Inviting new client
+                await contentService.createPremierUser(activeEntity);
+                await emailService.sendPremierInvitation(activeEntity);
+            }
+            setInvitingClient(false);
         } else if (activeTab === 'hero') await contentService.saveHero(activeEntity);
         else if (['insights', 'reports', 'podcasts', 'casestudy'].includes(activeTab)) await contentService.saveInsight(activeEntity);
         else if (activeTab === 'authors') await contentService.saveAuthor(activeEntity);
@@ -615,8 +625,10 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Confirm data erasure?")) return;
-    if (['insights', 'reports', 'podcasts', 'casestudy'].includes(activeTab)) contentService.deleteInsight(id);
+    if (!confirm("Confirm data erasure? This action is permanent.")) return;
+    if (activeTab === 'clients') {
+        await contentService.deleteClientProfile(id);
+    } else if (['insights', 'reports', 'podcasts', 'casestudy'].includes(activeTab)) contentService.deleteInsight(id);
     else if (activeTab === 'authors') contentService.deleteAuthor(id);
     else if (activeTab === 'offices') contentService.deleteOffice(id);
     else if (activeTab === 'jobs') contentService.deleteJob(id);
@@ -653,6 +665,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
   const handleCreateDigitalInvoice = async () => {
      const targetClientId = creatingGlobalInvoice ? selectedClientForInvoice : managingClient?.uid;
      if (!targetClientId) { alert("Please select a client."); return; }
+     // Fix: correctly handle client selection with ternary operator to resolve scope and identification logic
      const targetClient = creatingGlobalInvoice ? premierClients.find(c => c.uid === targetClientId) : managingClient;
      if (!targetClient) { alert("Client identification failed."); return; }
 
@@ -869,7 +882,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
              <button 
                onClick={confirmPayment}
                disabled={isSaving}
-               className="flex-1 py-3 bg-green-600 text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-green-500/20"
+               className="flex-1 py-3 bg-green-600 text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-green-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-green-500/20"
              >
                {isSaving ? <Loader2 className="animate-spin" size={16}/> : <CheckCircle size={16}/>} Confirm
              </button>
@@ -1052,7 +1065,14 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
                    {premierClients.map(client => (
                       <div key={client.uid} className="p-8 bg-white border border-slate-100 rounded-3xl shadow-sm hover:shadow-xl transition-all group relative overflow-hidden">
                          <div className="absolute top-0 right-0 w-24 h-24 bg-slate-50 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 group-hover:bg-[#CC1414]/10 transition-colors" />
-                         <div className="flex items-start justify-between mb-6 relative z-10"><div className="w-12 h-12 bg-slate-900 text-white flex items-center justify-center rounded-xl font-bold font-serif text-lg">{client.companyName ? client.companyName.charAt(0) : client.name.charAt(0)}</div><button onClick={() => openClientManager(client)} className="p-2 bg-slate-50 rounded-full hover:bg-[#CC1414] hover:text-white transition-colors"><ArrowRight size={16}/></button></div>
+                         <div className="flex items-start justify-between mb-6 relative z-10">
+                            <div className="w-12 h-12 bg-slate-900 text-white flex items-center justify-center rounded-xl font-bold font-serif text-lg">{client.companyName ? client.companyName.charAt(0) : client.name.charAt(0)}</div>
+                            <div className="flex gap-2">
+                               <button onClick={() => handleEdit(client, 'clients')} className="p-2 bg-slate-50 rounded-full hover:bg-blue-600 hover:text-white transition-colors" title="Edit Profile"><Edit2 size={16}/></button>
+                               <button onClick={() => handleDelete(client.uid)} className="p-2 bg-slate-50 rounded-full hover:bg-red-600 hover:text-white transition-colors" title="Delete Profile"><Trash2 size={16}/></button>
+                               <button onClick={() => openClientManager(client)} className="p-2 bg-slate-50 rounded-full hover:bg-[#CC1414] hover:text-white transition-colors" title="View Files"><ArrowRight size={16}/></button>
+                            </div>
+                         </div>
                          <h3 className="text-xl font-serif text-slate-900 mb-1">{client.companyName || 'Private Client'}</h3><p className="text-sm text-slate-500 mb-6 font-light">{client.name}</p>
                          <div className="space-y-3 pt-6 border-t border-slate-50"><div className="flex items-center gap-3 text-slate-400 text-xs"><Mail size={14}/> {client.email}</div><div className="flex items-center gap-3 text-slate-400 text-xs"><Phone size={14}/> {client.mobile}</div></div>
                       </div>
@@ -1077,11 +1097,11 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
                             <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-2">Client Vault</h4>
                             {clientDocs.length === 0 ? <div className="p-12 border-2 border-dashed border-slate-100 rounded-3xl text-center text-slate-400 italic">Empty Vault</div> : clientDocs.map(doc => (
                                <div key={doc.id} className="flex items-center justify-between p-6 bg-white border border-slate-100 rounded-2xl hover:shadow-lg transition-all">
-                                  <div className="flex items-center gap-4"><div className={`w-10 h-10 rounded-lg flex items-center justify-center ${doc.type === 'invoice' ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'}`}>{doc.type === 'invoice' ? <Receipt size={20}/> : <FileText size={20}/>}</div><div><h4 className="font-serif text-slate-900">{doc.title}</h4><p className="text-[10px] uppercase text-slate-400">{new Date(doc.date).toLocaleDateString()} • {doc.status || 'Archived'}</p></div></div>
+                                  <div className="flex items-center gap-4"><div className={`w-10 h-10 rounded-lg flex items-center justify-center ${doc.type === 'invoice' ? (doc.status === 'Paid' ? 'bg-green-50 text-green-600' : 'bg-yellow-50 text-yellow-600') : 'bg-blue-50 text-blue-600'}`}>{doc.type === 'invoice' ? <Receipt size={20}/> : <FileText size={20}/>}</div><div><h4 className="font-serif text-slate-900">{doc.title}</h4><p className="text-[10px] uppercase text-slate-400">{new Date(doc.date).toLocaleDateString()} • {doc.status || 'Archived'}</p></div></div>
                                   <div className="flex items-center gap-3">
                                      {doc.type === 'invoice' && doc.status !== 'Paid' && <button onClick={() => initiatePaymentRecord(doc)} className="p-2 text-green-600 bg-green-50 rounded-lg hover:bg-green-100" title="Record Payment"><Banknote size={16}/></button>}
-                                     {doc.type === 'invoice' && (<><button onClick={() => handleSendInvoiceEmail(doc)} className="p-2 text-slate-400 hover:text-slate-900 bg-slate-50 rounded-lg" title="Email Invoice"><Mail size={16}/></button>{doc.invoiceDetails && <button onClick={() => setViewInvoice({data: doc.invoiceDetails!, mode: 'invoice'})} className="p-2 text-blue-500 hover:text-blue-700 bg-blue-50 rounded-lg" title="View"><Eye size={16}/></button>}{doc.status === 'Paid' && doc.invoiceDetails && <button onClick={() => setViewInvoice({data: doc.invoiceDetails!, mode: 'receipt'})} className="p-2 text-slate-500 hover:text-slate-700 bg-slate-100 rounded-lg" title="Receipt"><Receipt size={16}/></button>}</>)}
-                                     {doc.url && <a href={doc.url} download className="p-2 text-slate-400 hover:text-slate-900 bg-slate-50 rounded-lg"><Download size={16}/></a>}
+                                     {doc.type === 'invoice' && (<><button onClick={() => handleSendInvoiceEmail(doc)} className="p-2 text-slate-400 hover:text-slate-900 bg-slate-50 rounded-lg" title="Email Invoice"><Mail size={16}/></button>{doc.invoiceDetails && <button onClick={() => setViewInvoice({data: doc.invoiceDetails!, mode: 'invoice'})} className="p-2 text-blue-500 hover:text-blue-700 bg-blue-50 rounded-lg" title="View"><Eye size={16}/></button>}{doc.status === 'Paid' && doc.invoiceDetails && <button onClick={() => setViewInvoice({data: inv.invoiceDetails!, mode: 'receipt'})} className="p-2 text-slate-500 hover:text-slate-700 bg-slate-100 rounded-lg" title="Receipt"><Receipt size={16}/></button>}</>)}
+                                     {doc.url && <a href={doc.url} download className="p-3 bg-black rounded-xl text-slate-400 hover:text-white transition-colors"><Download size={18}/></a>}
                                      <button onClick={() => contentService.deleteClientDocument(doc.id)} className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 rounded-lg"><Trash2 size={16}/></button>
                                   </div>
                                </div>
