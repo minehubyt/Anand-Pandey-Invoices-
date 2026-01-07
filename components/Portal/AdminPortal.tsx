@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   LayoutDashboard, FileText, Users, MapPin, 
@@ -10,7 +9,7 @@ import {
   Sun, Moon, ChevronRight, Download, Link, ExternalLink,
   Heading1, Heading2, AlignLeft, Type, FileUp, Music, Database,
   Linkedin, MessageCircle, Mail, BookOpen, Star, Palette, List, Maximize2, Monitor,
-  UserCheck, GraduationCap, Eye, Loader2, AlertTriangle, Crown, FilePlus, Receipt, CreditCard, Banknote, DollarSign, TrendingUp, AlertCircle, PenTool, Usb, Lock, KeyRound, HardDrive, AlertOctagon, ToggleLeft, ToggleRight, Settings, FileKey, HardDrive as HardDriveIcon, RefreshCcw, FileBadge
+  UserCheck, GraduationCap, Eye, Loader2, AlertTriangle, Crown, FilePlus, Receipt, CreditCard, Banknote, DollarSign, TrendingUp, AlertCircle, PenTool, Usb, Lock, KeyRound, HardDrive, AlertOctagon, ToggleLeft, ToggleRight, Settings, FileKey, HardDrive as HardDriveIcon, RefreshCcw, FileBadge, Video, Send
 } from 'lucide-react';
 import { pdf } from '@react-pdf/renderer';
 import { contentService } from '../../services/contentService';
@@ -428,6 +427,13 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
 
   const [showDSCModal, setShowDSCModal] = useState(false);
 
+  // Recruitment Specific Modals
+  const [showRejectionFlash, setShowRejectionFlash] = useState(false);
+  const [showInterviewFlash, setShowInterviewFlash] = useState(false);
+  const [currentProcessingApp, setCurrentProcessingApp] = useState<JobApplication | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('Based on our current strategic priorities, we have decided to pursue candidates whose current profile more closely aligns with the specific technical requirements of this mandate.');
+  const [interviewSchedule, setInterviewSchedule] = useState({ date: '', time: '', link: '' });
+
   const [recordingPaymentFor, setRecordingPaymentFor] = useState<ClientDocument | null>(null);
   const [paymentForm, setPaymentForm] = useState<PaymentRecord>({
       amountCleared: 0,
@@ -634,6 +640,65 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
     else if (activeTab === 'jobs') contentService.deleteJob(id);
   };
 
+  const handleApplicationStatusChange = (app: JobApplication, newStatus: JobApplication['status']) => {
+      setCurrentProcessingApp(app);
+      if (newStatus === 'Rejected') {
+          setShowRejectionFlash(true);
+          return;
+      }
+      if (newStatus === 'Interview') {
+          setShowInterviewFlash(true);
+          return;
+      }
+      // Direct update for other statuses
+      contentService.updateApplicationStatus(app.id, newStatus);
+  };
+
+  const sendRejectionFinal = async () => {
+      if (!currentProcessingApp) return;
+      setIsSaving(true);
+      try {
+          await emailService.sendRejectionEmail({
+              name: currentProcessingApp.data.personal.name,
+              email: currentProcessingApp.data.personal.email,
+              jobTitle: currentProcessingApp.jobTitle,
+              reason: rejectionReason
+          });
+          await contentService.updateApplicationStatus(currentProcessingApp.id, 'Rejected');
+          setShowRejectionFlash(false);
+          setCurrentProcessingApp(null);
+      } catch (err) {
+          alert("Email transmission failed.");
+      } finally {
+          setIsSaving(false);
+      }
+  };
+
+  const sendInterviewFinal = async () => {
+      if (!currentProcessingApp || !interviewSchedule.date || !interviewSchedule.time) {
+          alert("Mandatory scheduling details missing.");
+          return;
+      }
+      setIsSaving(true);
+      try {
+          await emailService.sendInterviewInvitation({
+              name: currentProcessingApp.data.personal.name,
+              email: currentProcessingApp.data.personal.email,
+              jobTitle: currentProcessingApp.jobTitle,
+              date: interviewSchedule.date,
+              time: interviewSchedule.time,
+              link: interviewSchedule.link
+          });
+          await contentService.updateApplicationStatus(currentProcessingApp.id, 'Interview');
+          setShowInterviewFlash(false);
+          setCurrentProcessingApp(null);
+      } catch (err) {
+          alert("Email transmission failed.");
+      } finally {
+          setIsSaving(false);
+      }
+  };
+
   const openClientManager = (client: UserProfile) => {
      setManagingClient(client);
      contentService.subscribeClientDocuments(client.uid, setClientDocs);
@@ -813,7 +878,7 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
 
     return (
       <div className="fixed inset-0 z-[300] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-        <div className="bg-white rounded-2xl w-full max-w-md p-8 shadow-2xl animate-scale-out">
+        <div className="bg-white rounded-2xl w-full max-md p-8 shadow-2xl animate-scale-out">
           <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
              <div className="p-2 bg-green-50 rounded-lg text-green-600"><Banknote size={20}/></div>
              <div>
@@ -948,6 +1013,66 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
       {showDSCModal && <DSCSigningModal onClose={() => setShowDSCModal(false)} onSign={handleDSCSign} />}
       {isEditing && <EditorModal entity={activeEntity} tab={activeTab} onSave={handleSave} onCancel={() => { setIsEditing(false); setActiveEntity(null); setInvitingClient(false); setCreatingGlobalInvoice(false); }} onChange={(newEntity) => setActiveEntity(newEntity)} />}
 
+      {/* Recruitment Flash Modals */}
+      {showRejectionFlash && currentProcessingApp && (
+         <div className="fixed inset-0 z-[350] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl w-full max-w-xl p-8 shadow-2xl animate-reveal-up">
+               <div className="flex items-center gap-4 mb-8 border-b border-slate-100 pb-4">
+                  <div className="p-3 bg-red-50 text-red-600 rounded-2xl"><AlertOctagon size={28}/></div>
+                  <div><h3 className="text-2xl font-serif text-slate-900">Mandate Rejection</h3><p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Communicating Outcome to {currentProcessingApp.data.personal.name}</p></div>
+               </div>
+               <div className="space-y-6">
+                  <p className="text-sm text-slate-500 font-light italic">Enter the strategic reason for rejection. This will be transmitted via secure email only when you click the authorize button below.</p>
+                  <textarea 
+                    value={rejectionReason}
+                    onChange={e => setRejectionReason(e.target.value)}
+                    className="w-full p-5 bg-slate-50 border border-slate-100 rounded-2xl min-h-[150px] outline-none focus:ring-1 focus:ring-red-600 font-light text-sm text-slate-700"
+                    placeholder="Provide specific feedback..."
+                  />
+                  <div className="flex gap-4">
+                     <button onClick={() => {setShowRejectionFlash(false); setCurrentProcessingApp(null);}} className="flex-1 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:bg-slate-50 rounded-xl transition-colors">Abort</button>
+                     <button onClick={sendRejectionFinal} disabled={isSaving} className="flex-1 py-4 bg-red-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-slate-900 transition-all shadow-xl flex items-center justify-center gap-2">
+                        {isSaving ? <Loader2 className="animate-spin" size={16}/> : <Send size={16}/>} Authorize Email
+                     </button>
+                  </div>
+               </div>
+            </div>
+         </div>
+      )}
+
+      {showInterviewFlash && currentProcessingApp && (
+         <div className="fixed inset-0 z-[350] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl w-full max-w-xl p-8 shadow-2xl animate-reveal-up">
+               <div className="flex items-center gap-4 mb-8 border-b border-slate-100 pb-4">
+                  <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl"><Video size={28}/></div>
+                  <div><h3 className="text-2xl font-serif text-slate-900">Schedule Interview</h3><p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Proposing Session to {currentProcessingApp.data.personal.name}</p></div>
+               </div>
+               <div className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                     <div className="space-y-2">
+                        <label className="text-[10px] font-bold uppercase text-slate-400">Proposed Date</label>
+                        <input type="date" value={interviewSchedule.date} onChange={e => setInterviewSchedule({...interviewSchedule, date: e.target.value})} className="w-full p-4 border rounded-xl text-sm outline-none focus:ring-1 focus:ring-blue-600" />
+                     </div>
+                     <div className="space-y-2">
+                        <label className="text-[10px] font-bold uppercase text-slate-400">Proposed Time (IST)</label>
+                        <input type="text" placeholder="e.g. 11:30 AM" value={interviewSchedule.time} onChange={e => setInterviewSchedule({...interviewSchedule, time: e.target.value})} className="w-full p-4 border rounded-xl text-sm outline-none focus:ring-1 focus:ring-blue-600" />
+                     </div>
+                  </div>
+                  <div className="space-y-2">
+                     <label className="text-[10px] font-bold uppercase text-slate-400">Meeting Link (Optional)</label>
+                     <input type="text" placeholder="Teams/Zoom/Meet Link" value={interviewSchedule.link} onChange={e => setInterviewSchedule({...interviewSchedule, link: e.target.value})} className="w-full p-4 border rounded-xl text-sm outline-none focus:ring-1 focus:ring-blue-600" />
+                  </div>
+                  <div className="flex gap-4 pt-4">
+                     <button onClick={() => {setShowInterviewFlash(false); setCurrentProcessingApp(null);}} className="flex-1 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:bg-slate-50 rounded-xl transition-colors">Abort</button>
+                     <button onClick={sendInterviewFinal} disabled={isSaving} className="flex-1 py-4 bg-blue-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-slate-900 transition-all shadow-xl flex items-center justify-center gap-2">
+                        {isSaving ? <Loader2 className="animate-spin" size={16}/> : <Send size={16}/>} Send Invitation
+                     </button>
+                  </div>
+               </div>
+            </div>
+         </div>
+      )}
+
       <aside className={`w-[290px] flex flex-col h-full shrink-0 border-r ${isDarkMode ? 'bg-[#111216] border-white/5' : 'bg-white border-slate-200'}`}>
         <div className="p-8 pb-4">
           <div className="flex items-center gap-4 mb-10">
@@ -1040,8 +1165,8 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ onLogout }) => {
                                 <td className="p-6"><p className="text-sm font-bold text-slate-900">{app.data.personal.name}</p><p className="text-xs text-slate-400">{app.data.personal.email}</p></td>
                                 <td className="p-6 text-sm text-slate-700">{app.jobTitle}</td>
                                 <td className="p-6 text-center">{app.data.resumeUrl && app.data.resumeUrl !== 'Not Attached' ? <span className="text-xs font-bold text-blue-600 uppercase bg-blue-50 px-2 py-1 rounded">Attached</span> : <span className="text-xs text-slate-300">N/A</span>}</td>
-                                <td className="p-6 text-center"><span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${app.status === 'Received' ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'}`}>{app.status}</span></td>
-                                <td className="p-6 text-right"><select value={app.status} onChange={(e) => contentService.updateApplicationStatus(app.id, e.target.value as any)} className="p-2 border rounded text-xs bg-white"><option>Received</option><option>Under Review</option><option>Interview</option><option>Offered</option><option>Rejected</option></select></td>
+                                <td className="p-6 text-center"><span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${app.status === 'Received' ? 'bg-blue-50 text-blue-600' : app.status === 'Interview' ? 'bg-green-100 text-green-700' : app.status === 'Offered' ? 'bg-green-50 text-green-600' : 'bg-slate-100 text-slate-600'}`}>{app.status}</span></td>
+                                <td className="p-6 text-right"><select value={app.status} onChange={(e) => handleApplicationStatusChange(app, e.target.value as any)} className="p-2 border rounded text-xs bg-white"><option>Received</option><option>Under Review</option><option>Interview</option><option>Offered</option><option>Rejected</option></select></td>
                             </tr>
                         ))}
                     </tbody>

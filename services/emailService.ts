@@ -1,4 +1,3 @@
-
 /**
  * AK PANDEY & ASSOCIATES | STRATEGIC EMAIL PROTOCOL
  * 
@@ -195,7 +194,7 @@ export const emailService = {
   },
 
   sendApplicationConfirmation: async (data: any) => {
-    const { name, email, jobTitle, formData } = data;
+    const { name, email, jobTitle } = data;
     const overviewBody = `<p>We have filed your credentials for <strong>${jobTitle}</strong>.</p>`;
     const html = generateExecutiveTemplate("Application Received", name, `Thank you for your interest in joining AK Pandey & Associates.`, "DOSSIER SUMMARY", overviewBody);
     await emailService.send(email, `Application: ${jobTitle}`, html);
@@ -209,6 +208,48 @@ export const emailService = {
     if (status === 'Interview') body += `<p>We will contact you shortly to schedule.</p>`;
     const html = generateExecutiveTemplate("Application Status", name, body, "STATUS UPDATE", "");
     await emailService.send(email, subject, html);
+  },
+
+  sendRejectionEmail: async (data: { name: string; email: string; jobTitle: string; reason: string }) => {
+    const { name, email, jobTitle, reason } = data;
+    const introText = `We appreciate the time and effort you put into your application for the <strong>${jobTitle}</strong> position.`;
+    const overviewBody = `
+      <p style="margin-bottom: 15px; color: #64748B;">After careful consideration, we have decided not to move forward with your application at this time.</p>
+      <div style="padding: 20px; background-color: #ffffff; border-left: 4px solid ${COLORS.primary}; color: ${COLORS.text}; font-size: 14px;">
+        <strong>Reason for Decision:</strong><br>
+        ${reason}
+      </div>
+      <p style="margin-top: 20px; font-size: 13px; color: #94A3B8;">We will keep your dossier in our talent pool for future opportunities that align with your pedigree.</p>
+    `;
+    const html = generateExecutiveTemplate("Recruitment Update", name, introText, "APPLICATION DECISION", overviewBody);
+    await emailService.send(email, `Update on your application: ${jobTitle}`, html);
+  },
+
+  sendInterviewInvitation: async (data: { name: string; email: string; jobTitle: string; date: string; time: string; link?: string }) => {
+    const { name, email, jobTitle, date, time, link } = data;
+    const introText = `We were impressed with your credentials and would like to invite you for an interview for the <strong>${jobTitle}</strong> role.`;
+    const overviewBody = `
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="padding-bottom: 12px; font-size: 14px; color: #64748B;">Date:</td>
+          <td style="padding-bottom: 12px; font-size: 14px; font-weight: 700; color: ${COLORS.dark}; text-align: right;">${new Date(date).toLocaleDateString('en-IN', { dateStyle: 'long' })}</td>
+        </tr>
+        <tr>
+          <td style="padding-bottom: 12px; font-size: 14px; color: #64748B;">Time:</td>
+          <td style="padding-bottom: 12px; font-size: 14px; font-weight: 700; color: ${COLORS.dark}; text-align: right;">${time} (IST)</td>
+        </tr>
+        ${link ? `
+        <tr>
+          <td style="padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 14px; color: #64748B;">Meeting Link:</td>
+          <td style="padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 14px; font-weight: 700; color: ${COLORS.primary}; text-align: right;">
+            <a href="${link}" style="color: ${COLORS.primary}; text-decoration: none;">Join Session</a>
+          </td>
+        </tr>` : ''}
+      </table>
+      <p style="margin-top: 20px; font-size: 13px; color: #94A3B8; text-align: center;">Please ensure you are in a quiet environment with a stable connection 5 minutes prior to the session.</p>
+    `;
+    const html = generateExecutiveTemplate("Interview Invitation", name, introText, "SCHEDULE DETAILS", overviewBody, link || "https://anandpandey.in", "View Mandate Details");
+    await emailService.send(email, `Interview Scheduled: ${jobTitle}`, html);
   },
 
   sendInvoiceNotification: async (client: any, invoice: any, pdfBase64?: string) => {
@@ -298,7 +339,7 @@ export const emailService = {
   },
 
   sendPremierInvitation: async (data: any) => {
-    const { name, email, companyName, mobile } = data;
+    const { name, email, companyName } = data;
     const overviewBody = `
       <p style="margin-bottom: 15px;">A secure client dashboard has been provisioned for <strong>${companyName}</strong>.</p>
       <ul style="color: ${COLORS.text}; font-size: 14px; line-height: 1.6; padding-left: 20px;">
