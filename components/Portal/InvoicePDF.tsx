@@ -1,45 +1,46 @@
+
+import React from 'react';
 import { Page, Text, View, Document, StyleSheet, Image, Svg, Path } from '@react-pdf/renderer';
 import { InvoiceDetails } from '../../types';
 
+// Standard PDF fonts: Helvetica (Sans) matches the Portal's "Inter/Sans" look better than Times.
+// COLOR RULE: #000000 for everything. #A6192E for Logo.
+
 const styles = StyleSheet.create({
   page: {
-    padding: 30,
+    padding: 30, // Reduced padding to ensure fit
     paddingTop: 40,
     fontFamily: 'Helvetica',
-    fontSize: 9,
+    fontSize: 9, // Slightly reduced base font size
     lineHeight: 1.4,
-    color: '#000000',
+    color: '#000000', // Pure Black
   },
-  watermark: {
-    position: 'absolute',
-    top: '40%',
-    left: '15%',
-    fontSize: 100,
-    fontFamily: 'Helvetica-Bold',
-    color: '#FF0000',
-    opacity: 0.1,
-    transform: 'rotate(-45deg)',
-    borderWidth: 5,
-    borderColor: '#FF0000',
-    padding: 20,
-    textTransform: 'uppercase'
-  },
+  // --- Header ---
   headerContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 30,
   },
+  logoContainer: {
+    flexDirection: 'column',
+  },
+  logoTextRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+  // MATCHING PORTAL LOGO EXACTLY: Sans-Serif (Helvetica-Bold), Red, Wide Spacing
   logoMain: {
     fontSize: 16,
     fontFamily: 'Helvetica-Bold', 
     letterSpacing: 2.5,
-    color: '#A6192E',
+    color: '#A6192E', // Brand Red
     textTransform: 'uppercase',
   },
   logoAmp: {
     fontSize: 11,
     fontFamily: 'Helvetica',
-    color: '#A6192E',
+    color: '#A6192E', // Brand Red
     marginHorizontal: 4,
     marginTop: 2,
   },
@@ -48,52 +49,292 @@ const styles = StyleSheet.create({
     fontSize: 8,
     color: '#000000',
   },
-  statusBoxRevoked: {
-    borderWidth: 2,
-    borderColor: '#FF0000',
-    color: '#FF0000',
+  companyNameBold: {
     fontFamily: 'Helvetica-Bold',
-    padding: 4,
-    fontSize: 10,
+    color: '#000000',
+    fontSize: 8,
     textTransform: 'uppercase',
-    textAlign: 'center',
-    width: 100
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+
+  // --- Metadata Section ---
+  gridContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  metaColumn: {
+    flexDirection: 'column',
+    width: '48%',
+  },
+  metaRow: {
+    flexDirection: 'row',
+    marginBottom: 4,
+  },
+  metaLabel: {
+    width: 80,
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 9,
+    color: '#000000',
+  },
+  metaValue: {
+    flex: 1,
+    fontSize: 9,
+    color: '#000000',
+  },
+  addressLabel: {
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 9,
+    color: '#000000',
+    marginBottom: 2,
+    marginTop: 8,
+  },
+  addressValue: {
+    fontSize: 9,
+    color: '#000000',
+    textTransform: 'uppercase',
+    marginBottom: 10,
+  },
+
+  // --- Payment Receipt Box ---
+  paymentBox: {
+    borderWidth: 0.5, // Thinner
+    borderColor: '#000000',
+    padding: 8,
+    marginBottom: 15,
+    flexDirection: 'row',
+    justifyContent: 'space-between'
+  },
+  paymentItem: {
+    flexDirection: 'column',
+  },
+  paymentLabel: {
+    fontSize: 7,
+    fontFamily: 'Helvetica-Bold',
+    textTransform: 'uppercase',
+    color: '#000000',
+    marginBottom: 2,
+  },
+  paymentVal: {
+    fontSize: 9,
+    color: '#000000',
+  },
+
+  // --- Table ---
+  tableContainer: {
+    marginTop: 15,
+    marginBottom: 10,
   },
   tableHeader: {
     flexDirection: 'row',
-    borderTopWidth: 0.7,
-    borderBottomWidth: 0.7,
-    borderColor: '#000000',
+    borderTopWidth: 0.7, // Thinner lines
+    borderBottomWidth: 0.7, // Thinner lines
+    borderTopColor: '#000000',
+    borderBottomColor: '#000000',
     paddingVertical: 6,
     alignItems: 'center',
-    backgroundColor: '#F9FAFB'
   },
   tableRow: {
     flexDirection: 'row',
     paddingVertical: 8,
     borderBottomWidth: 0.5,
-    borderColor: '#000000',
+    borderBottomColor: '#000000',
   },
-  colNo: { width: '8%', fontFamily: 'Helvetica-Bold' },
-  colDesc: { width: '67%', fontFamily: 'Helvetica-Bold' },
-  colAmount: { width: '25%', textAlign: 'right', fontFamily: 'Helvetica-Bold' },
+  colNo: {
+    width: '8%',
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 9,
+    color: '#000000',
+  },
+  colDesc: {
+    width: '67%',
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 9,
+    color: '#000000',
+  },
+  colAmount: {
+    width: '25%',
+    textAlign: 'right',
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 9,
+    color: '#000000',
+  },
+  colAmountVal: {
+    width: '25%',
+    textAlign: 'right',
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 9,
+    color: '#000000',
+  },
+
+  // --- Total Section ---
+  totalSection: {
+    marginTop: 0,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
   totalContainer: {
+    width: '100%',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    borderBottomWidth: 1,
+    alignItems: 'center',
+    borderBottomWidth: 1, // Single line instead of double thickness
+    borderBottomColor: '#000000',
     paddingVertical: 10,
   },
-  qrImage: {
-    width: 100,
-    height: 100,
-    marginTop: 5
+  totalLabel: {
+    fontSize: 11,
+    fontFamily: 'Helvetica-Bold',
+    color: '#000000',
+    textAlign: 'right',
+    flex: 1,
+    paddingRight: 20,
+    textTransform: 'uppercase'
   },
-  dscStamp: {
+  totalValue: {
+    fontSize: 11,
+    fontFamily: 'Helvetica-Bold',
+    color: '#000000',
+    textAlign: 'right',
+    width: '25%', 
+  },
+
+  // --- Words Section ---
+  amountWordsSection: {
+    marginTop: 15,
+    marginBottom: 20, 
+    borderBottomWidth: 0.7, // Thinner
+    borderBottomColor: '#000000',
+    paddingBottom: 8,
+  },
+  amountWords: {
+    fontFamily: 'Helvetica-Bold',
+    textTransform: 'uppercase',
+    fontSize: 9,
+    color: '#000000',
+  },
+
+  // --- Terms & QR Combined Section ---
+  termsAndQrContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginTop: 10,
+    marginBottom: 10, 
+    minHeight: 100, // Ensure space reserved
+  },
+  termsColumn: {
+    width: '55%',
+  },
+  qrColumn: {
+    width: '40%',
+    alignItems: 'center',
+    paddingTop: 5,
+  },
+  termsTitle: {
+    fontSize: 8,
+    fontFamily: 'Helvetica-Bold',
+    textTransform: 'uppercase',
+    color: '#000000',
+    marginBottom: 6,
+  },
+  termItem: {
+    flexDirection: 'row',
+    marginBottom: 3,
+  },
+  termBullet: {
+    width: 12,
+    fontSize: 8,
+    color: '#000000',
+  },
+  termText: {
+    flex: 1,
+    fontSize: 8,
+    color: '#000000',
+  },
+  termTextBold: {
+    flex: 1,
+    fontSize: 8,
+    color: '#000000',
+    fontFamily: 'Helvetica-Bold',
+  },
+
+  // --- QR Specifics ---
+  qrImage: {
+    width: 110, // Slightly smaller to fit better if needed
+    height: 110,
+    marginBottom: 4,
     borderWidth: 0.5,
-    borderColor: '#E5E7EB',
-    padding: 5,
-    width: 180,
-    marginTop: 10
+    borderColor: '#E2E8F0',
+  },
+  qrLabel: {
+    fontSize: 8,
+    fontFamily: 'Helvetica-Bold',
+    textTransform: 'uppercase',
+    color: '#000000',
+    marginTop: 4,
+  },
+  qrSubLabel: {
+    fontSize: 7,
+    fontFamily: 'Helvetica',
+    color: '#666666',
+    marginTop: 2,
+  },
+
+  // --- Signature ---
+  footerSection: {
+    marginTop: 20,
+    flexDirection: 'row',
+    justifyContent: 'flex-start', // Signature on LEFT
+    alignItems: 'flex-start',
+  },
+  signatureContainer: {
+    textAlign: 'left', // Align Left
+    marginTop: 10,
+    minWidth: 200,
+  },
+  signImage: {
+    height: 40,
+    width: 120,
+    objectFit: 'contain',
+    marginBottom: 5,
+    marginLeft: -10 
+  },
+  signAuth: {
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 9,
+    textTransform: 'uppercase',
+    color: '#000000',
+  },
+  
+  // --- REALISTIC DIGITAL SIGNATURE STAMP ---
+  dscStampBox: {
+    marginTop: 10,
+    marginBottom: 10,
+    position: 'relative',
+    height: 60, 
+    width: 250,
+    // No border needed, usually invisible container
+  },
+  dscTextLarge: {
+    fontSize: 14,
+    fontFamily: 'Helvetica', // Standard readable font
+    color: '#000000',
+    marginBottom: 4,
+  },
+  dscTextSmall: {
+    fontSize: 9,
+    fontFamily: 'Helvetica',
+    color: '#000000',
+    marginBottom: 2,
+  },
+  checkMarkContainer: {
+    position: 'absolute',
+    top: 5,
+    left: 70, // Overlaid on text
+    opacity: 0.9,
+    zIndex: 10
   }
 });
 
@@ -104,94 +345,216 @@ interface InvoicePDFProps {
 
 export const InvoicePDF: React.FC<InvoicePDFProps> = ({ data, type = 'invoice' }) => {
   const isReceipt = type === 'receipt';
+  
+  // UPI PAYMENT QR LOGIC
   const upiId = "7541076176@ybl";
-  const upiString = `upi://pay?pa=${upiId}&pn=AK%20Pandey%20Associates&am=${data.totalAmount}&cu=INR`;
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(upiString)}`;
+  const payeeName = "AK Pandey Associates";
+  const note = `Inv ${data.invoiceNo}`;
+  const upiString = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(payeeName)}&am=${Number(data.totalAmount).toFixed(2)}&tn=${encodeURIComponent(note)}&cu=INR`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=450x450&data=${encodeURIComponent(upiString)}&bgcolor=ffffff`;
+
+  // Date formatting for DSC
+  const dscDate = data.digitalSignature 
+    ? new Date(data.digitalSignature.timestamp).toLocaleString('en-GB', { 
+        year: 'numeric', 
+        month: '2-digit', 
+        day: '2-digit', 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit',
+        hour12: false
+      }).replace(',', '') + ' +05:30'
+    : '';
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        {data.isRevoked && <Text style={styles.watermark}>Canceled</Text>}
         
+        {/* Header - Portal Logo Replica */}
         <View style={styles.headerContainer}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={styles.logoMain}>AK PANDEY</Text>
-            <Text style={styles.logoAmp}>&</Text>
-            <Text style={styles.logoMain}>ASSOCIATES</Text>
+          <View style={styles.logoContainer}>
+            <View style={styles.logoTextRow}>
+              <Text style={styles.logoMain}>AK PANDEY</Text>
+              <Text style={styles.logoAmp}>&</Text>
+              <Text style={styles.logoMain}>ASSOCIATES</Text>
+            </View>
           </View>
           <View style={styles.companyDetails}>
-            <Text style={{ fontFamily: 'Helvetica-Bold' }}>AK Pandey & Associates</Text>
-            <Text>High Court Chambers, New Delhi</Text>
-            <Text>finance@anandpandey.in</Text>
+            <Text style={styles.companyNameBold}>AK Pandey & Associates</Text>
+            <Text>High Court Chambers, Shanti Path</Text>
+            <Text>New Delhi, 110001, India</Text>
+            <Text>Tel: +91 11 2345 6789</Text>
+            <Text>Email: finance@anandpandey.in</Text>
           </View>
         </View>
 
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderBottomWidth: 1, paddingBottom: 5, marginBottom: 20 }}>
-          <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 12 }}>{isReceipt ? 'PAYMENT RECEIPT' : 'PROFESSIONAL FEE INVOICE'}</Text>
-          {data.isRevoked && <Text style={styles.statusBoxRevoked}>Canceled</Text>}
+        {/* Title Block */}
+        <View style={{ marginBottom: 15, borderBottomWidth: 0.7, borderBottomColor: '#000000', paddingBottom: 4 }}>
+           <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 12, textTransform: 'uppercase', color: '#000000' }}>
+              {isReceipt ? 'PAYMENT RECEIPT' : 'PROFESSIONAL FEE INVOICE'}
+           </Text>
         </View>
 
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 }}>
-          <View style={{ width: '50%' }}>
-            <Text>Invoice No: {data.invoiceNo}</Text>
-            <Text>Client: {data.clientName}</Text>
-            <Text>Address: {data.clientAddress}</Text>
-          </View>
-          <View style={{ width: '40%', textAlign: 'right' }}>
-            <Text>Date: {new Date(data.date).toLocaleDateString('en-GB')}</Text>
-            <Text>Attn: {data.kindAttn}</Text>
-          </View>
-        </View>
-
-        <View style={styles.tableHeader}>
-          <Text style={styles.colNo}>S.No.</Text>
-          <Text style={styles.colDesc}>Particulars</Text>
-          <Text style={styles.colAmount}>Amount (INR)</Text>
-        </View>
-        
-        {data.items.map((item, idx) => (
-          <View key={idx} style={styles.tableRow}>
-            <Text style={styles.colNo}>{idx + 1}.</Text>
-            <View style={{ width: '67%' }}>
-              <Text style={{ fontFamily: 'Helvetica-Bold' }}>{item.description}</Text>
-              {item.itemCode && <Text style={{ fontSize: 7, color: '#666' }}>Code: {item.itemCode}</Text>}
-            </View>
-            <Text style={styles.colAmount}>{Number(item.amount).toFixed(2)}</Text>
-          </View>
-        ))}
-
-        <View style={styles.totalContainer}>
-          <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 11 }}>TOTAL AMOUNT</Text>
-          <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 11 }}>INR {data.totalAmount.toLocaleString('en-IN')}</Text>
-        </View>
-
-        <Text style={{ fontFamily: 'Helvetica-Bold', marginTop: 10 }}>RUPEES {data.amountInWords}</Text>
-
-        {/* Fix: Replaced undefined variable 'mode' with the destructured 'type' prop */}
-        {!data.isRevoked && type === 'invoice' && (
-          <View style={{ flexDirection: 'row', marginTop: 30 }}>
-            <View style={{ width: '60%' }}>
-              <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 8 }}>TERMS:</Text>
-              {data.terms.map((t, i) => <Text key={i} style={{ fontSize: 7 }}>- {t}</Text>)}
-            </View>
-            <View style={{ width: '40%', alignItems: 'center' }}>
-              <Image src={qrUrl} style={styles.qrImage} />
-              <Text style={{ fontSize: 8, fontFamily: 'Helvetica-Bold' }}>SCAN TO PAY</Text>
-            </View>
-          </View>
+        {/* Receipt Details Box (Only for Receipts) */}
+        {isReceipt && data.payment && (
+           <View style={styles.paymentBox}>
+              <View style={styles.paymentItem}>
+                 <Text style={styles.paymentLabel}>Receipt No</Text>
+                 <Text style={styles.paymentVal}>RCP-{data.invoiceNo}</Text>
+              </View>
+              <View style={styles.paymentItem}>
+                 <Text style={styles.paymentLabel}>Date</Text>
+                 <Text style={styles.paymentVal}>{new Date(data.payment.date).toLocaleDateString()}</Text>
+              </View>
+              <View style={styles.paymentItem}>
+                 <Text style={styles.paymentLabel}>Mode</Text>
+                 <Text style={styles.paymentVal}>{data.payment.mode}</Text>
+              </View>
+              <View style={styles.paymentItem}>
+                 <Text style={styles.paymentLabel}>Ref No</Text>
+                 <Text style={styles.paymentVal}>{data.payment.transactionReference}</Text>
+              </View>
+           </View>
         )}
 
-        <View style={{ marginTop: 40 }}>
-          {data.digitalSignature && (
-            <View style={styles.dscStamp}>
-              <Text style={{ fontFamily: 'Helvetica-Bold', color: '#008000' }}>Signature valid</Text>
-              <Text style={{ fontSize: 7 }}>Digitally signed by {data.digitalSignature.signatoryName}</Text>
-              <Text style={{ fontSize: 7 }}>Date: {new Date(data.digitalSignature.timestamp).toLocaleString()}</Text>
-            </View>
-          )}
-          <Text style={{ fontFamily: 'Helvetica-Bold', marginTop: 10 }}>FOR AK PANDEY & ASSOCIATES</Text>
-          <Text style={{ fontSize: 8 }}>Authorized Signatory</Text>
+        {/* Info Grid */}
+        <View style={styles.gridContainer}>
+           <View style={styles.metaColumn}>
+              <View style={styles.metaRow}>
+                 <Text style={styles.metaLabel}>Invoice No.</Text>
+                 <Text style={styles.metaValue}>:  {data.invoiceNo}</Text>
+              </View>
+              <View style={styles.metaRow}>
+                 <Text style={styles.metaLabel}>Client Name</Text>
+                 <Text style={styles.metaValue}>:  {data.clientName}</Text>
+              </View>
+              <Text style={styles.addressLabel}>Billing Address:</Text>
+              <Text style={styles.addressValue}>{data.clientAddress}</Text>
+           </View>
+
+           <View style={styles.metaColumn}>
+              <View style={styles.metaRow}>
+                 <Text style={styles.metaLabel}>Invoice Date</Text>
+                 <Text style={styles.metaValue}>:  {new Date(data.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}</Text>
+              </View>
+              <View style={styles.metaRow}>
+                 <Text style={styles.metaLabel}>Kind Attn.</Text>
+                 <Text style={styles.metaValue}>:  {data.kindAttn}</Text>
+              </View>
+           </View>
         </View>
+
+        {/* Receipt Acknowledgement Text */}
+        {isReceipt && (
+           <Text style={{ fontFamily: 'Helvetica-Oblique', fontSize: 9, marginBottom: 15, color: '#000000' }}>
+              Received with thanks from {data.clientName} a sum of INR {Number(data.totalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })} towards full and final settlement.
+           </Text>
+        )}
+
+        {/* Main Table */}
+        <View style={styles.tableContainer}>
+           <View style={styles.tableHeader}>
+              <Text style={styles.colNo}>S.No.</Text>
+              <Text style={styles.colDesc}>Particulars</Text>
+              <Text style={styles.colAmount}>Amount (INR)</Text>
+           </View>
+           
+           {data.items.map((item, idx) => (
+              <View key={idx} style={styles.tableRow}>
+                 <Text style={styles.colNo}>{idx + 1}.</Text>
+                 <Text style={styles.colDesc}>{item.description}</Text>
+                 <Text style={styles.colAmountVal}>{Number(item.amount).toFixed(2)}</Text>
+              </View>
+           ))}
+        </View>
+
+        {/* Total Section */}
+        <View style={styles.totalSection}>
+           <View style={styles.totalContainer}>
+              <Text style={styles.totalLabel}>{isReceipt ? 'Amount Received' : 'Gross Amount'}</Text>
+              <Text style={styles.totalValue}>{Number(data.totalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</Text>
+           </View>
+        </View>
+
+        {/* Amount in Words */}
+        <View style={styles.amountWordsSection}>
+           <Text style={styles.amountWords}>RUPEES {data.amountInWords}</Text>
+        </View>
+
+        {/* Terms & QR Code (Side by Side) - Explicit Ordering */}
+        <View style={styles.termsAndQrContainer}>
+           
+           {/* Terms Column */}
+           <View style={isReceipt ? {width: '100%'} : styles.termsColumn}>
+              <Text style={styles.termsTitle}>{isReceipt ? 'PAYMENT ACKNOWLEDGEMENT' : 'TERMS AND CONDITIONS'}</Text>
+              {isReceipt ? (
+                 <Text style={{ fontSize: 8, color: '#000000' }}>
+                    This receipt is computer generated and valid without signature. The payment has been credited to AK Pandey & Associates.
+                 </Text>
+              ) : (
+                 data.terms.map((term, i) => {
+                    // Logic to detect Bank Details string and bold it
+                    const isBankDetails = term.toLowerCase().includes('bank details') || term.toLowerCase().includes('ifsc') || term.toLowerCase().includes('account number');
+                    return (
+                       <View key={i} style={styles.termItem}>
+                          <Text style={styles.termBullet}>{String.fromCharCode(97 + i)})</Text>
+                          <Text style={isBankDetails ? styles.termTextBold : styles.termText}>{term}</Text>
+                       </View>
+                    );
+                 })
+              )}
+           </View>
+
+           {/* QR Column - ONLY FOR INVOICES */}
+           {!isReceipt && (
+               <View style={styles.qrColumn}>
+                  <Image style={styles.qrImage} src={qrUrl} />
+                  <Text style={styles.qrLabel}>SCAN TO PAY VIA UPI</Text>
+                  <Text style={styles.qrSubLabel}>GPay • PhonePe • Paytm</Text>
+                  <Text style={{ fontSize: 6, fontFamily: 'Helvetica', color: '#999', marginTop: 1 }}>{upiId}</Text>
+               </View>
+           )}
+
+        </View>
+
+        {/* Footer Signature Area - Explicitly Below Terms */}
+        <View style={styles.footerSection}>
+           {/* Signature - ONLY FOR INVOICES */}
+           {!isReceipt && (
+              <View style={styles.signatureContainer}>
+                 
+                 {data.digitalSignature ? (
+                    <View style={styles.dscStampBox}>
+                       <Text style={styles.dscTextLarge}>Signature valid</Text>
+                       <Text style={styles.dscTextSmall}>Digitally signed by {data.digitalSignature.signatoryName}</Text>
+                       <Text style={styles.dscTextSmall}>Date: {dscDate}</Text>
+                       <Text style={styles.dscTextSmall}>Location: Ranchi</Text>
+                       
+                       {/* SVG Checkmark Overlay */}
+                       <Svg style={styles.checkMarkContainer} height="40" width="40" viewBox="0 0 100 100">
+                          {/* Green Checkmark */}
+                          <Path
+                             d="M20 50 L40 70 L80 20"
+                             stroke="#008000"
+                             strokeWidth="10"
+                             fill="none"
+                             strokeLinecap="round"
+                             strokeLinejoin="round"
+                          />
+                       </Svg>
+                    </View>
+                 ) : (
+                    data.signatureImage && (
+                       <Image src={data.signatureImage} style={styles.signImage} />
+                    )
+                 )}
+
+                 <Text style={styles.signAuth}>FOR AK PANDEY & ASSOCIATES</Text>
+                 <Text style={{ fontSize: 9, color: '#000000', marginTop: 2 }}>Authorized Signatory</Text>
+              </View>
+           )}
+        </View>
+
       </Page>
     </Document>
   );
